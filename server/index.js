@@ -16,9 +16,12 @@ app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/employee', require('./routes/employee'));
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+        console.log(`Server listening on port ${PORT}`);
+    });
+}
+
 
 module.exports = app;
