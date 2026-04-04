@@ -111,12 +111,12 @@ const EmployeeDashboard = ({ user, setUser }) => {
     ];
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
+        <div className="dashboard-layout">
             <Sidebar role="employee" activeTab={activeTab} setActiveTab={setActiveTab} name={'Prof. ' + user.name} logout={logout} />
             
-            <main className="animate-fadeIn" style={{ flex: 1, padding: '2rem 4rem', overflowY: 'auto' }}>
-                <header style={{ marginBottom: '3rem' }}>
-                    <h1 className="title" style={{ margin: 0, fontSize: '2rem' }}>Employee Portal</h1>
+            <main className="dashboard-main animate-fadeIn">
+                <header className="dashboard-header" style={{ marginBottom: '2rem' }}>
+                    <h1 className="title" style={{ margin: 0 }}>Employee Portal</h1>
                     <p className="subtitle" style={{ margin: 0 }}>Department: {user.department}</p>
                 </header>
 
@@ -221,7 +221,7 @@ const EmployeeDashboard = ({ user, setUser }) => {
                                 </div>
                             ) : qrToken ? (
                                 /* STATE 2: ACTIVE SCANNING HYBRID GRID */
-                                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem' }}>
+                                <div className="attendance-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '2rem' }}>
                                     {/* Left Half: QR Core */}
                                     <div className="glass-panel animate-fadeIn" style={{ padding: '4rem 2rem', textAlign: 'center', height: 'fit-content' }}>
                                         <h2 style={{ fontSize: '2rem', marginBottom: '1.5rem' }}>Active Transmission</h2>

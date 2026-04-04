@@ -68,17 +68,17 @@ const AdminDashboard = ({ admin, setAdmin }) => {
   ];
 
   return (
-      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
+      <div className="dashboard-layout">
           <Sidebar role="admin" activeTab={activeTab} setActiveTab={setActiveTab} name="Administrator" logout={logout} />
 
           {/* Main Content */}
-          <main style={{ flex: 1, padding: '2rem 4rem', overflowY: 'auto' }}>
+          <main className="dashboard-main">
               <h1 style={{ fontSize: '2rem', marginBottom: '2rem' }}>
                   {navItems.find(i => i.id === activeTab).label}
               </h1>
 
               {activeTab === 'metrics' && metrics && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+                  <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                       <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
                           <Users size={32} color="var(--primary)" style={{ marginBottom: '1rem' }} />
                           <h3 style={{ fontSize: '2rem', margin: 0 }}>{metrics.students}</h3>
@@ -109,7 +109,7 @@ const AdminDashboard = ({ admin, setAdmin }) => {
                       )}
 
                       {activeTab === 'employees' && showAddEmployee && (
-                          <form onSubmit={handleCreateEmployee} autoComplete="off" style={{ background: 'rgba(0, 0, 0, 0.03)', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                          <form onSubmit={handleCreateEmployee} autoComplete="off" className="emp-form-grid" style={{ background: 'rgba(0, 0, 0, 0.03)', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                               <input autoComplete="off" required className="input-field" placeholder="Name" value={empForm.name} onChange={e => setEmpForm({...empForm, name: e.target.value})} />
                               <input autoComplete="new-password" required className="input-field" placeholder="Username" type="text" value={empForm.username} onChange={e => setEmpForm({...empForm, username: e.target.value})} />
                               <input autoComplete="off" required className="input-field" placeholder="Department" value={empForm.department} onChange={e => setEmpForm({...empForm, department: e.target.value})} />
@@ -125,8 +125,8 @@ const AdminDashboard = ({ admin, setAdmin }) => {
                       ) : dataList.length === 0 ? (
                           <p style={{ color: 'var(--text-muted)' }}>No records found.</p>
                       ) : (
-                          <div style={{ overflowX: 'auto' }}>
-                              <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
+                          <div className="table-scroll">
+                              <table style={{ textAlign: 'left', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
                                   <thead>
                                       <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
                                           {activeTab === 'students' && (

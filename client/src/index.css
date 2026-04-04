@@ -139,7 +139,7 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 .auth-card {
@@ -180,4 +180,200 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
+}
+
+/* ─────────────────────────────────────────────
+   Dashboard Layout
+───────────────────────────────────────────── */
+
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-color);
+}
+
+/* Main content area */
+.dashboard-main {
+  flex: 1;
+  padding: 2rem 4rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ─────────────────────────────────────────────
+   Desktop Sidebar
+───────────────────────────────────────────── */
+
+.sidebar-desktop {
+  width: 280px;
+  min-width: 280px;
+  background: var(--glass-bg);
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 1.5rem;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+/* ─────────────────────────────────────────────
+   Mobile Top Bar (hidden on desktop)
+───────────────────────────────────────────── */
+
+.mobile-topbar {
+  display: none;
+}
+
+/* ─────────────────────────────────────────────
+   Mobile Drawer
+───────────────────────────────────────────── */
+
+.mobile-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.mobile-drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 80%;
+  max-width: 320px;
+  height: 100%;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  animation: slideInLeft 0.25s ease;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.15);
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+/* ─────────────────────────────────────────────
+   Tables — always scrollable
+───────────────────────────────────────────── */
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll table {
+  min-width: 500px;
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE BREAKPOINTS
+───────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+
+  /* Hide desktop sidebar, show mobile topbar */
+  .sidebar-desktop {
+    display: none;
+  }
+
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.2rem;
+    background: var(--glass-bg);
+    border-bottom: 1px solid var(--glass-border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  /* Stack layout vertically */
+  .dashboard-layout {
+    flex-direction: column;
+  }
+
+  /* Reduce main padding on mobile */
+  .dashboard-main {
+    padding: 1.2rem 1rem;
+  }
+
+  /* Smaller title on mobile */
+  .title {
+    font-size: 1.5rem !important;
+  }
+
+  /* Auth card full width on small screens */
+  .auth-card {
+    padding: 2rem 1.5rem;
+  }
+
+  /* Grid collapses to 1 col */
+  .responsive-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Employee QR + roster: stack vertically */
+  .attendance-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Employee form: 1 col on mobile */
+  .emp-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Panels: reduce padding */
+  .glass-panel {
+    border-radius: 12px;
+  }
+
+  /* Buttons full width on small screens */
+  .btn-mobile-full {
+    width: 100% !important;
+  }
+
+  /* Header on mobile: stack */
+  .dashboard-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem !important;
+  }
+
+  /* Reduce heading size in panels */
+  h2 {
+    font-size: 1.3rem !important;
+  }
+
+  h1 {
+    font-size: 1.6rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-main {
+    padding: 1rem 0.8rem;
+  }
+
+  .auth-card {
+    padding: 1.5rem 1rem;
+  }
+
+  .title {
+    font-size: 1.3rem !important;
+  }
 }

@@ -76,20 +76,20 @@ const Dashboard = ({ user, setUser }) => {
   };
 
   return (
-      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
+      <div className="dashboard-layout">
           <Sidebar role="student" activeTab={activeTab} setActiveTab={setActiveTab} name={user.name} logout={logout} />
           
-          <main className="animate-fadeIn" style={{ flex: 1, padding: '2rem 4rem', overflowY: 'auto' }}>
-              <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
+          <main className="dashboard-main animate-fadeIn">
+              <header className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
                   <div>
-                      <h1 className="title" style={{ margin: 0, fontSize: '2rem' }}>Student Portal</h1>
+                      <h1 className="title" style={{ margin: 0 }}>Student Portal</h1>
                       <p className="subtitle" style={{ margin: 0 }}>Welcome back, {user.name} ({user.rollNumber})</p>
                   </div>
               </header>
 
         {activeTab === 'overview' && (
             <div className="animate-fadeIn">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
                     
                     {/* Face Sync Card */}
                     <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
@@ -133,38 +133,40 @@ const Dashboard = ({ user, setUser }) => {
                 </div>
 
                 <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>Recent Attendance</h2>
-                <div className="glass-panel" style={{ padding: '1rem 2rem' }}>
+                <div className="glass-panel" style={{ padding: '1rem 1.5rem' }}>
                     {loading ? (
                         <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>Loading records...</p>
                     ) : records.length === 0 ? (
                         <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No attendance records found.</p>
                     ) : (
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                                    <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: '500' }}>Date</th>
-                                    <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: '500' }}>Time</th>
-                                    <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: '500' }}>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {records.map(record => (
-                                    <tr key={record._id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                                        <td style={{ padding: '1rem' }}>{new Date(record.date).toLocaleDateString()}</td>
-                                        <td style={{ padding: '1rem' }}>{new Date(record.date).toLocaleTimeString()}</td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span style={{ 
-                                                background: record.status === 'Present' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                                color: record.status === 'Present' ? 'var(--success)' : 'var(--danger)',
-                                                padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: '600'
-                                            }}>
-                                                {record.status}
-                                            </span>
-                                        </td>
+                        <div className="table-scroll">
+                            <table>
+                                <thead>
+                                    <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                                        <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: '500' }}>Date</th>
+                                        <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: '500' }}>Time</th>
+                                        <th style={{ padding: '1rem', color: 'var(--text-muted)', fontWeight: '500' }}>Status</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {records.map(record => (
+                                        <tr key={record._id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                                            <td style={{ padding: '1rem' }}>{new Date(record.date).toLocaleDateString()}</td>
+                                            <td style={{ padding: '1rem' }}>{new Date(record.date).toLocaleTimeString()}</td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <span style={{ 
+                                                    background: record.status === 'Present' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                                    color: record.status === 'Present' ? 'var(--success)' : 'var(--danger)',
+                                                    padding: '4px 12px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: '600'
+                                                }}>
+                                                    {record.status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
                 </div>
             </div>
