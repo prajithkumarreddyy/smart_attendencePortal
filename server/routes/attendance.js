@@ -54,10 +54,26 @@ router.post('/register-face', authMiddleware, async (req, res) => {
     }
 });
 
+// Calculate distance between two points in meters (Haversine formula)
+const getDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // Radius of Earth in meters
+    const phi1 = lat1 * Math.PI / 180;
+    const phi2 = lat2 * Math.PI / 180;
+    const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+    const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+              Math.cos(phi1) * Math.cos(phi2) *
+              Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distance in meters
+};
+
 // Mark attendance securely utilizing dynamic QR Token
 router.post('/mark', authMiddleware, async (req, res) => {
     try {
-        const { descriptor, sessionToken } = req.body;
+        const { descriptor, sessionToken, location } = req.body;
         if (!descriptor || !Array.isArray(descriptor) || descriptor.length !== 128) {
             return res.status(400).json({ message: 'Invalid face descriptor' });
         }
@@ -71,6 +87,24 @@ router.post('/mark', authMiddleware, async (req, res) => {
         } catch (err) {
             return res.status(403).json({ message: 'QR Code is expired or invalid. Ask the professor to generate a new live session.' });
         }
+
+        // --- GEOFENCING VERIFICATION ---
+        const collegeLat = parseFloat(process.env.COLLEGE_LAT);
+        const collegeLng = parseFloat(process.env.COLLEGE_LNG);
+        const radius = parseFloat(process.env.COLLEGE_RADIUS) || 200;
+
+        if (!location || !location.lat || !location.lng) {
+            return res.status(400).json({ message: 'GPS location required to verify you are on campus.' });
+        }
+
+        const distance = getDistance(location.lat, location.lng, collegeLat, collegeLng);
+        if (distance > radius) {
+            return res.status(403).json({ 
+                message: `Location Access Denied: You are ${Math.round(distance)}m away from college. Attendance only allowed within ${radius}m of campus.`,
+                distance
+            });
+        }
+        // -------------------------------
 
         const student = await Student.findById(req.user.id);
         if (!student.registeredFace) {
@@ -113,7 +147,7 @@ router.post('/mark', authMiddleware, async (req, res) => {
             date: new Date()
         });
         await newAttendance.save();
-        res.json({ message: 'Attendance successfully marked', distance });
+        res.json({ message: 'Attendance successfully marked', distance: distanceToSelf, locationDistance: distance });
 
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });

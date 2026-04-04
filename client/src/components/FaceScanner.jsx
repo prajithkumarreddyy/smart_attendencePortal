@@ -223,10 +223,41 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
                 stopVideo();
                 setTimeout(() => onCaptureSuccess(), 1500);
             } else if (currentMode === 'mark') {
-                await api.post('/attendance/mark', { descriptor: formattedDescriptor, sessionToken: qrToken });
-                setStatus('✅ Attendance Marked Successfully!');
-                stopVideo();
-                setTimeout(() => onCaptureSuccess(), 1500);
+                setStatus('📍 Verifying Campus Location...');
+                
+                // Get current GPS location
+                const getLocation = () => {
+                    return new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(
+                            (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                            (err) => reject(err),
+                            { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+                        );
+                    });
+                };
+
+                try {
+                    const loc = await getLocation();
+                    await api.post('/attendance/mark', { 
+                        descriptor: formattedDescriptor, 
+                        sessionToken: qrToken,
+                        location: loc
+                    });
+                    setStatus('✅ Attendance Marked Successfully!');
+                    stopVideo();
+                    setTimeout(() => onCaptureSuccess(), 1500);
+                } catch (geoErr) {
+                    let msg = 'Location Error: ';
+                    if (geoErr.code === 1) msg += 'Permission denied. Please allow location access.';
+                    else if (geoErr.code === 3) msg += 'Request timed out. Ensure GPS is on and try again.';
+                    else msg += geoErr.message;
+                    
+                    setStatus('❌ ' + msg);
+                    setTimeout(() => {
+                        isProcessingRef.current = false;
+                        setIsProcessing(false);
+                    }, 4000);
+                }
             }
         } catch (err) {
             setStatus('❌ ' + (err.response?.data?.message || err.message));
