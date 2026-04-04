@@ -181,9 +181,9 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
             if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
             try {
-                // inputSize: 224 is faster and works better on low-res mobile cameras
-                // scoreThreshold: 0.3 catches faces even in poor lighting
-                const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
+                // inputSize: 416 = detects faces from farther distance (smaller faces in frame)
+                // 224 = needs face very close. 320 = medium. 416 = works at arm's length or further.
+                const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 });
                 const detections = await faceapi.detectSingleFace(videoRef.current, options)
                     .withFaceLandmarks()
                     .withFaceDescriptor();
@@ -197,8 +197,8 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
                     const score = detections.detection.score;
                     setStatus(`Face detected (${Math.round(score * 100)}% confidence)... Hold steady`);
 
-                    // 0.5 threshold is reliable enough for face-api descriptor matching
-                    if (score > 0.5 && !isProcessingRef.current) {
+                    // 0.4 threshold — relaxed enough to work at normal distance
+                    if (score > 0.4 && !isProcessingRef.current) {
                         isProcessingRef.current = true;
                         setIsProcessing(true);
                         setStatus('Processing Face Data...');
