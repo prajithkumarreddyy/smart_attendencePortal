@@ -253,15 +253,28 @@ const EmployeeDashboard = ({ user, setUser }) => {
                                             </div>
                                         </div>
                                         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                                            {liveAttendance.presentStudents.map((s, i) => (
-                                                <div key={i} className="animate-fadeIn" style={{ padding: '1rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <div>
-                                                        <span style={{ fontWeight: 'bold', display: 'block', fontSize: '1.1rem' }}>{s.roll}</span>
-                                                        <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{s.name}</span>
-                                                    </div>
-                                                    <span style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.15)', padding: '4px 12px', borderRadius: '12px' }}>Verified</span>
+                                            {liveAttendance.presentStudents.length === 0 ? (
+                                                <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+                                                    <p style={{ fontSize: '1.1rem', margin: 0 }}>No students verified yet</p>
+                                                    <p style={{ fontSize: '0.85rem', margin: '0.5rem 0 0' }}>Students will appear here in real-time as they scan</p>
                                                 </div>
-                                            ))}
+                                            ) : (
+                                                liveAttendance.presentStudents.map((s, i) => (
+                                                    <div key={i} className="animate-fadeIn" style={{ padding: '0.8rem 1rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                        <span style={{ 
+                                                            width: '28px', height: '28px', borderRadius: '50%', 
+                                                            background: 'var(--primary)', color: 'white', 
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            fontSize: '0.8rem', fontWeight: '700', flexShrink: 0
+                                                        }}>{i + 1}</span>
+                                                        <div style={{ flex: 1 }}>
+                                                            <span style={{ fontWeight: 'bold', display: 'block', fontSize: '1rem' }}>{s.roll}</span>
+                                                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{s.name}</span>
+                                                        </div>
+                                                        <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 'bold', background: 'rgba(16, 185, 129, 0.15)', padding: '4px 12px', borderRadius: '12px' }}>✓ Present</span>
+                                                    </div>
+                                                ))
+                                            )}
                                         </div>
                                     </div>
                                 </div>
