@@ -100,7 +100,8 @@ router.post('/mark', authMiddleware, async (req, res) => {
         const newAttendance = new Attendance({
             student: student._id,
             status: 'Present',
-            sessionToken: sessionToken
+            sessionToken: sessionToken,
+            date: new Date()
         });
         await newAttendance.save();
         res.json({ message: 'Attendance successfully marked', distance });
@@ -110,11 +111,19 @@ router.post('/mark', authMiddleware, async (req, res) => {
     }
 });
 
-// Get user's attendance records
+// Get user's attendance records with percentage
 router.get('/my-records', authMiddleware, async (req, res) => {
     try {
         const records = await Attendance.find({ student: req.user.id }).sort({ date: -1 });
-        res.json(records);
+        
+        // Calculate percentage: count total unique session days globally
+        const allAttendance = await Attendance.find({ status: 'Present' });
+        const uniqueDays = new Set(allAttendance.map(a => a.date.toISOString().split('T')[0]));
+        const totalSessions = uniqueDays.size || 1;
+        const presentCount = records.filter(r => r.status === 'Present').length;
+        const percentage = Math.round((presentCount / totalSessions) * 100);
+
+        res.json({ records, totalSessions, presentCount, percentage });
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });
     }

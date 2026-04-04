@@ -84,49 +84,73 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
 
     const startVideo = async () => {
         try {
-            // Try front camera first with simple constraints (most mobile-compatible)
             let stream;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'user' },
-                    audio: false 
-                });
-            } catch (e) {
-                // Fallback: some devices don't support facingMode
-                console.warn('facingMode failed, trying basic video', e);
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: true, 
-                    audio: false 
-                });
+            // Try multiple constraint combinations for maximum device compatibility
+            const constraints = [
+                { video: { facingMode: 'user' }, audio: false },
+                { video: { facingMode: { ideal: 'user' } }, audio: false },
+                { video: true, audio: false }
+            ];
+
+            for (const constraint of constraints) {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(constraint);
+                    break;
+                } catch (e) {
+                    console.warn('Constraint failed:', constraint, e.message);
+                }
+            }
+
+            if (!stream) {
+                setStatus('Could not access camera. Please check your browser permissions.');
+                return;
             }
 
             streamRef.current = stream;
             if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.setAttribute('playsinline', 'true');
-                videoRef.current.setAttribute('webkit-playsinline', 'true');
-                videoRef.current.muted = true;
+                const video = videoRef.current;
+                
+                // Set ALL iOS-required attributes BEFORE assigning srcObject
+                video.setAttribute('autoplay', '');
+                video.setAttribute('muted', '');
+                video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
+                video.playsInline = true;
+                video.muted = true;
+                video.srcObject = stream;
 
-                // Wait for video to actually have data before declaring success
+                // iOS fires 'loadeddata' more reliably than 'loadedmetadata'
                 await new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => reject(new Error('Video timeout')), 10000);
-                    videoRef.current.onloadedmetadata = () => {
+                    const timeout = setTimeout(() => {
+                        // Even on timeout, try to play — sometimes events just don't fire on iOS
+                        video.play().then(resolve).catch(reject);
+                    }, 5000);
+
+                    const onReady = () => {
                         clearTimeout(timeout);
-                        videoRef.current.play()
-                            .then(resolve)
-                            .catch(reject);
+                        video.removeEventListener('loadeddata', onReady);
+                        video.removeEventListener('loadedmetadata', onReady);
+                        video.play().then(resolve).catch(reject);
                     };
+
+                    video.addEventListener('loadeddata', onReady);
+                    video.addEventListener('loadedmetadata', onReady);
+
+                    // If video already has data (e.g. from cache), fire immediately
+                    if (video.readyState >= 2) {
+                        onReady();
+                    }
                 });
                 setStatus('Position your face clearly in the screen...');
             }
         } catch (err) {
             console.error("Camera error:", err);
             if (err.name === 'NotAllowedError') {
-                setStatus('Camera permission denied. Please allow camera access in your browser settings and reload.');
+                setStatus('Camera permission denied. Go to Settings > Safari > Camera and allow access, then reload.');
             } else if (err.name === 'NotFoundError') {
-                setStatus('No camera found. Please use a device with a camera.');
-            } else if (err.name === 'NotReadableError') {
-                setStatus('Camera is in use by another app. Close other camera apps and retry.');
+                setStatus('No camera found on this device.');
+            } else if (err.name === 'NotReadableError' || err.name === 'AbortError') {
+                setStatus('Camera is busy. Close other apps using the camera and try again.');
             } else {
                 setStatus('Camera error: ' + err.message + '. Try reloading the page.');
             }

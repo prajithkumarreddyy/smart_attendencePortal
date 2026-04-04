@@ -20,14 +20,25 @@ const employeeAuth = (req, res, next) => {
 
 router.get('/students', employeeAuth, async (req, res) => {
     try {
-        // Fetch all enrolled students
         const students = await Student.find().select('name rollNumber registeredFace');
+        
+        // Count total unique session days (distinct dates where any attendance was recorded)
+        const allAttendance = await Attendance.find({ status: 'Present' });
+        const uniqueDays = new Set(allAttendance.map(a => a.date.toISOString().split('T')[0]));
+        const totalSessions = uniqueDays.size || 1; // Avoid division by zero
+
         const studentsWithAttendance = await Promise.all(students.map(async student => {
             const count = await Attendance.countDocuments({ student: student._id, status: 'Present' });
+            const percentage = Math.round((count / totalSessions) * 100);
             return {
                 roll: student.rollNumber,
                 name: student.name,
-                attendance: student.registeredFace ? `${count} Session${count === 1 ? '' : 's'} Present` : 'Biometric Setup Pending'
+                presentCount: count,
+                totalSessions,
+                percentage,
+                attendance: student.registeredFace 
+                    ? `${count}/${totalSessions} (${percentage}%)` 
+                    : 'Biometric Setup Pending'
             };
         }));
         res.json(studentsWithAttendance);
@@ -89,7 +100,8 @@ router.post('/mark-manual', employeeAuth, async (req, res) => {
         const newAttendance = new Attendance({
             student: student._id,
             status: 'Present',
-            sessionToken
+            sessionToken,
+            date: new Date()
         });
         await newAttendance.save();
         res.json({ message: 'Successfully marked present manually' });

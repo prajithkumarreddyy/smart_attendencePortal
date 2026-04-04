@@ -21,6 +21,7 @@ const Dashboard = ({ user, setUser }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [scanMode, setScanMode] = useState('');
   const [records, setRecords] = useState([]);
+  const [attendanceStats, setAttendanceStats] = useState({ totalSessions: 0, presentCount: 0, percentage: 0 });
   const [loading, setLoading] = useState(true);
   const [urlToken, setUrlToken] = useState(null);
 
@@ -28,7 +29,12 @@ const Dashboard = ({ user, setUser }) => {
     if (!silent) setLoading(true);
     try {
         const res = await api.get('/attendance/my-records');
-        setRecords(res.data);
+        setRecords(res.data.records || []);
+        setAttendanceStats({
+            totalSessions: res.data.totalSessions || 0,
+            presentCount: res.data.presentCount || 0,
+            percentage: res.data.percentage || 0
+        });
     } catch (err) {
         console.error("Failed to fetch records", err);
     } finally {
@@ -105,7 +111,24 @@ const Dashboard = ({ user, setUser }) => {
 
         {activeTab === 'overview' && (
             <div className="animate-fadeIn">
-                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                    
+                    {/* Attendance Percentage Card */}
+                    <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                        <div style={{ 
+                            width: '80px', height: '80px', borderRadius: '50%', marginBottom: '1rem',
+                            background: `conic-gradient(${attendanceStats.percentage >= 75 ? 'var(--success)' : attendanceStats.percentage >= 50 ? '#f59e0b' : 'var(--danger)'} ${attendanceStats.percentage * 3.6}deg, rgba(0,0,0,0.05) 0deg)`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '1.2rem', color: attendanceStats.percentage >= 75 ? 'var(--success)' : attendanceStats.percentage >= 50 ? '#f59e0b' : 'var(--danger)' }}>
+                                {attendanceStats.percentage}%
+                            </div>
+                        </div>
+                        <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Attendance</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                            {attendanceStats.presentCount}/{attendanceStats.totalSessions} sessions
+                        </p>
+                    </div>
                     
                     {/* Face Sync Card */}
                     <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
