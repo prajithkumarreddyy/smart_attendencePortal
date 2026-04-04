@@ -82,20 +82,55 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
         };
     }, [currentMode, isRegistered]);
 
-    const startVideo = () => {
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } })
-            .then(stream => {
-                streamRef.current = stream;
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    // Ensure video element plays — needed on some mobile browsers
-                    videoRef.current.play().catch(() => {});
-                }
-            })
-            .catch(err => {
-                console.error("Camera access denied", err);
-                setStatus('Camera access denied. Please grant permission and reload.');
-            });
+    const startVideo = async () => {
+        try {
+            // Try front camera first with simple constraints (most mobile-compatible)
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user' },
+                    audio: false 
+                });
+            } catch (e) {
+                // Fallback: some devices don't support facingMode
+                console.warn('facingMode failed, trying basic video', e);
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
+                    audio: false 
+                });
+            }
+
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.setAttribute('playsinline', 'true');
+                videoRef.current.setAttribute('webkit-playsinline', 'true');
+                videoRef.current.muted = true;
+
+                // Wait for video to actually have data before declaring success
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Video timeout')), 10000);
+                    videoRef.current.onloadedmetadata = () => {
+                        clearTimeout(timeout);
+                        videoRef.current.play()
+                            .then(resolve)
+                            .catch(reject);
+                    };
+                });
+                setStatus('Position your face clearly in the screen...');
+            }
+        } catch (err) {
+            console.error("Camera error:", err);
+            if (err.name === 'NotAllowedError') {
+                setStatus('Camera permission denied. Please allow camera access in your browser settings and reload.');
+            } else if (err.name === 'NotFoundError') {
+                setStatus('No camera found. Please use a device with a camera.');
+            } else if (err.name === 'NotReadableError') {
+                setStatus('Camera is in use by another app. Close other camera apps and retry.');
+            } else {
+                setStatus('Camera error: ' + err.message + '. Try reloading the page.');
+            }
+        }
     };
 
     const stopVideo = () => {
