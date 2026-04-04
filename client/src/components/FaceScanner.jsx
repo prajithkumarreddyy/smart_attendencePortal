@@ -157,7 +157,10 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
             if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
             try {
-                const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+                // inputSize: 224 is faster and works better on low-res mobile cameras
+                // scoreThreshold: 0.3 catches faces even in poor lighting
+                const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
+                const detections = await faceapi.detectSingleFace(videoRef.current, options)
                     .withFaceLandmarks()
                     .withFaceDescriptor();
 
@@ -167,7 +170,11 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
                     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
                     faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
                     
-                    if (detections.detection.score > 0.8 && !isProcessingRef.current) {
+                    const score = detections.detection.score;
+                    setStatus(`Face detected (${Math.round(score * 100)}% confidence)... Hold steady`);
+
+                    // 0.5 threshold is reliable enough for face-api descriptor matching
+                    if (score > 0.5 && !isProcessingRef.current) {
                         isProcessingRef.current = true;
                         setIsProcessing(true);
                         setStatus('Processing Face Data...');
@@ -180,7 +187,7 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
             } catch (err) {
                 // Detection can fail if video element is in a bad state — just skip
             }
-        }, 800);
+        }, 500);
     };
 
     const processDescriptor = async (descriptorFloat32) => {
