@@ -8,7 +8,12 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
+// Allow requests from the deployed frontend URL (set CORS_ORIGIN env var in Vercel)
+const corsOptions = {
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+    credentials: true,
+};
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' })); // High limit because face descriptor arrays can be large (128 floats)
 
 app.use('/api/auth', require('./routes/auth'));
