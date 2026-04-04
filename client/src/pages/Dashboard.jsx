@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Camera, CheckCircle, Clock, LogOut } from 'lucide-react';
 import api from '../api';
 import Sidebar from '../components/Sidebar';
@@ -15,8 +16,10 @@ const Dashboard = ({ user, setUser }) => {
       return <EmployeeDashboard user={user} setUser={setUser} />;
   }
 
-  const [activeTab, setActiveTab] = useState('overview'); // overview | scan
-  const [scanMode, setScanMode] = useState(''); // register | mark | qr-scan
+  const location = useLocation();
+
+  const [activeTab, setActiveTab] = useState('overview');
+  const [scanMode, setScanMode] = useState('');
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [urlToken, setUrlToken] = useState(null);
@@ -34,15 +37,21 @@ const Dashboard = ({ user, setUser }) => {
   };
 
   useEffect(() => {
-    // Intercept native mobile camera scans containing a dynamic sessionToken URL parameters
-    const params = new URLSearchParams(window.location.search);
+    // Read sessionToken from URL — works on both / and /dashboard routes
+    const params = new URLSearchParams(location.search);
     const token = params.get('sessionToken');
     if (token) {
         setUrlToken(token);
         if (user.registeredFace) {
-            startScan('mark'); // Fast-forward directly to face detection, bypassing manual QR scanner
-            window.history.replaceState({}, document.title, window.location.pathname);
+            // Face already registered — jump straight to face scanner
+            setScanMode('mark');
+            setActiveTab('scan');
+        } else {
+            // Face not registered — show a prompt but keep the token for later
+            setActiveTab('overview');
         }
+        // Clean the token from the URL bar
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
 
     let interval;
