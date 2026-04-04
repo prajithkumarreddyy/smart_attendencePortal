@@ -11,9 +11,15 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
     const canvasRef = useRef();
     const [modelsLoaded, setModelsLoaded] = useState(false);
     const [status, setStatus] = useState('Initializing models (takes ~5s)...');
+    const isProcessingRef = useRef(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const streamRef = useRef(null);
     const scanIntervalRef = useRef(null);
+
+    // Sync ref with state so interval callback always gets latest value
+    useEffect(() => {
+        isProcessingRef.current = isProcessing;
+    }, [isProcessing]);
 
     useEffect(() => {
         if (currentMode === 'qr-scan') {
@@ -22,10 +28,19 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
                  qrbox: { width: 250, height: 250 }
             });
             scanner.render((decodedText) => {
-                 setQrToken(decodedText);
-                 scanner.clear().then(() => {
-                      setCurrentMode('mark'); // Transition to Face Recognition
-                 });
+                // The QR encodes the full URL — extract just the sessionToken param
+                let token = decodedText;
+                try {
+                    const url = new URL(decodedText);
+                    const param = url.searchParams.get('sessionToken');
+                    if (param) token = param;
+                } catch (e) {
+                    // Not a URL, use raw text as token
+                }
+                setQrToken(token);
+                scanner.clear().then(() => {
+                     setCurrentMode('mark');
+                });
             }, (error) => {});
             
             return () => {
@@ -35,17 +50,17 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
     }, [currentMode]);
 
     useEffect(() => {
-        if (currentMode === 'qr-scan') return; // Gate: Ensure QR is scanned before loading face models
+        if (currentMode === 'qr-scan') return;
         
         if (currentMode === 'register' && isRegistered) {
-            return; // Permanently lock if registered
+            return;
         }
 
         const loadModels = async () => {
-            const MODEL_URL = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+            // Use jsDelivr CDN — much more reliable than raw.githubusercontent.com
+            const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
             try {
-                // Models fetched from CDN for convenience and saving bandwidth. 
-                // Using FaceLandmark68 and FaceRecognition nets.
+                setStatus('Loading AI face models...');
                 await Promise.all([
                     faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                     faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
@@ -56,7 +71,7 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
                 startVideo();
             } catch (err) {
                 console.error("Error loading models", err);
-                setStatus('Failed to load face-api models. Check internet connection.');
+                setStatus('Failed to load face-api models. Check internet connection and try again.');
             }
         };
         loadModels();
@@ -68,22 +83,25 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
     }, [currentMode, isRegistered]);
 
     const startVideo = () => {
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } })
             .then(stream => {
                 streamRef.current = stream;
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
+                    // Ensure video element plays — needed on some mobile browsers
+                    videoRef.current.play().catch(() => {});
                 }
             })
             .catch(err => {
                 console.error("Camera access denied", err);
-                setStatus('Camera access denied. Please grant permission.');
+                setStatus('Camera access denied. Please grant permission and reload.');
             });
     };
 
     const stopVideo = () => {
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(t => t.stop());
+            streamRef.current = null;
         }
     };
 
@@ -96,28 +114,36 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
             faceapi.matchDimensions(canvasRef.current, displaySize);
         }
 
+        // Clear any previous interval
+        if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+
         scanIntervalRef.current = setInterval(async () => {
-            if (isProcessing) return;
+            if (isProcessingRef.current) return;
+            if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
-            const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
-                .withFaceLandmarks()
-                .withFaceDescriptor();
+            try {
+                const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
 
-            if (detections && canvasRef.current) {
-                const resizedDetections = faceapi.resizeResults(detections, displaySize);
-                const ctx = canvasRef.current.getContext('2d');
-                ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-                faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
-                
-                // If detection score is strong, trigger
-                if (detections.detection.score > 0.8 && !isProcessing) {
-                    setIsProcessing(true);
-                    setStatus('Processing Face Data...');
-                    processDescriptor(detections.descriptor);
+                if (detections && canvasRef.current) {
+                    const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                    const ctx = canvasRef.current.getContext('2d');
+                    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+                    faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
+                    
+                    if (detections.detection.score > 0.8 && !isProcessingRef.current) {
+                        isProcessingRef.current = true;
+                        setIsProcessing(true);
+                        setStatus('Processing Face Data...');
+                        processDescriptor(detections.descriptor);
+                    }
+                } else if (canvasRef.current) {
+                    const ctx = canvasRef.current.getContext('2d');
+                    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
                 }
-            } else if (canvasRef.current) {
-                const ctx = canvasRef.current.getContext('2d');
-                ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            } catch (err) {
+                // Detection can fail if video element is in a bad state — just skip
             }
         }, 800);
     };
@@ -127,16 +153,22 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
         try {
             if (currentMode === 'register') {
                 await api.post('/attendance/register-face', { descriptor: formattedDescriptor });
-                setStatus('Face Registered Successfully!');
+                setStatus('✅ Face Registered Successfully!');
+                stopVideo();
                 setTimeout(() => onCaptureSuccess(), 1500);
             } else if (currentMode === 'mark') {
                 await api.post('/attendance/mark', { descriptor: formattedDescriptor, sessionToken: qrToken });
-                setStatus('Attendance Secured Successfully!');
+                setStatus('✅ Attendance Marked Successfully!');
+                stopVideo();
                 setTimeout(() => onCaptureSuccess(), 1500);
             }
         } catch (err) {
-            setStatus('Failed: ' + (err.response?.data?.message || err.message));
-            setTimeout(() => setIsProcessing(false), 3000);
+            setStatus('❌ ' + (err.response?.data?.message || err.message));
+            setTimeout(() => {
+                isProcessingRef.current = false;
+                setIsProcessing(false);
+                setStatus('Position your face clearly in the screen...');
+            }, 3000);
         }
     };
 
@@ -182,13 +214,13 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
                     </>
                 ) : (
                     <div style={{ padding: '6rem 2rem', color: 'var(--text-muted)' }}>
-                        <RefreshCw className="animate-spin" size={40} style={{ animation: 'spin 2s linear infinite', margin: '0 auto 10px' }} />
-                        <p>Loading AI Models...</p>
+                        <RefreshCw size={40} style={{ animation: 'spin 2s linear infinite', margin: '0 auto 10px', display: 'block' }} />
+                        <p>{status}</p>
                         <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
                     </div>
                 )}
             </div>
-            <button className="btn-secondary" style={{ marginTop: '1.5rem', width: '200px' }} onClick={onCancel}>
+            <button className="btn-secondary" style={{ marginTop: '1.5rem', width: '200px' }} onClick={() => { stopVideo(); onCancel(); }}>
                 Cancel
             </button>
         </div>
