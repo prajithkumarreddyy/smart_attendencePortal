@@ -24,13 +24,15 @@ const Login = ({ setUser }) => {
     try {
       const res = await api.post('/auth/login', formData);
       localStorage.setItem('token', res.data.token);
-      setUser(res.data.user);
 
-      // If came via QR scan, redirect to dashboard with the sessionToken preserved
+      // Save QR token to sessionStorage BEFORE setUser — because setUser triggers
+      // an App.jsx re-render that unmounts Login before navigate() can run
       if (sessionToken) {
-        navigate(`/dashboard?sessionToken=${sessionToken}`, { replace: true });
+        sessionStorage.setItem('pendingSessionToken', sessionToken);
       }
-      // Otherwise normal flow — setUser triggers re-render → Navigate to /dashboard
+
+      setUser(res.data.user);
+      // App.jsx re-renders → redirects to /dashboard → Dashboard reads sessionStorage
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {

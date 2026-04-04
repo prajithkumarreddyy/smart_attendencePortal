@@ -37,9 +37,16 @@ const Dashboard = ({ user, setUser }) => {
   };
 
   useEffect(() => {
-    // Read sessionToken from URL — works on both / and /dashboard routes
+    // Read sessionToken from URL (direct QR scan while logged in) 
+    // OR from sessionStorage (QR scan → login → redirect, where Login.jsx saved it)
     const params = new URLSearchParams(location.search);
-    const token = params.get('sessionToken');
+    let token = params.get('sessionToken');
+
+    if (!token) {
+      token = sessionStorage.getItem('pendingSessionToken');
+      if (token) sessionStorage.removeItem('pendingSessionToken');
+    }
+
     if (token) {
         setUrlToken(token);
         if (user.registeredFace) {
@@ -47,7 +54,7 @@ const Dashboard = ({ user, setUser }) => {
             setScanMode('mark');
             setActiveTab('scan');
         } else {
-            // Face not registered — show a prompt but keep the token for later
+            // Face not registered — show overview but keep the token
             setActiveTab('overview');
         }
         // Clean the token from the URL bar
