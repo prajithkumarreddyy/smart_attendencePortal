@@ -96,20 +96,14 @@ router.post('/mark', authMiddleware, async (req, res) => {
             }
         }
 
-        // Check if attendance already marked today
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date();
-        endOfDay.setHours(23, 59, 59, 999);
-        
+        // Check if attendance already marked for this specific session
         const existingAttendance = await Attendance.findOne({
             student: req.user.id,
-            date: { $gte: startOfDay, $lte: endOfDay }
+            sessionToken: sessionToken
         });
 
         if (existingAttendance) {
-            return res.status(400).json({ message: 'Attendance already marked for today' });
+            return res.status(400).json({ message: 'Attendance already marked for this session' });
         }
 
         const newAttendance = new Attendance({
@@ -131,10 +125,10 @@ router.get('/my-records', authMiddleware, async (req, res) => {
     try {
         const records = await Attendance.find({ student: req.user.id }).sort({ date: -1 });
         
-        // Calculate percentage: count total unique session days globally
+        // Calculate percentage: count total unique session tokens globally
         const allAttendance = await Attendance.find({ status: 'Present' });
-        const uniqueDays = new Set(allAttendance.map(a => a.date.toISOString().split('T')[0]));
-        const totalSessions = uniqueDays.size || 1;
+        const uniqueSessions = new Set(allAttendance.filter(a => a.sessionToken).map(a => a.sessionToken));
+        const totalSessions = uniqueSessions.size || 1;
         const presentCount = records.filter(r => r.status === 'Present').length;
         const percentage = Math.round((presentCount / totalSessions) * 100);
 

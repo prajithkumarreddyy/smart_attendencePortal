@@ -7,7 +7,7 @@ const AttendanceSchema = new mongoose.Schema({
     sessionToken: { type: String }
 }, { timestamps: true });
 
-// Ensure a student can only be marked present once per day
-AttendanceSchema.index({ student: 1, date: 1 }, { unique: true });
+// Ensure a student can only be marked once per unique session token
+AttendanceSchema.index({ student: 1, sessionToken: 1 }, { unique: true });
 
 module.exports = mongoose.model('Attendance', AttendanceSchema);

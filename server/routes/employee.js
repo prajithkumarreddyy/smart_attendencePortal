@@ -22,10 +22,10 @@ router.get('/students', employeeAuth, async (req, res) => {
     try {
         const students = await Student.find().select('name rollNumber registeredFace');
         
-        // Count total unique session days (distinct dates where any attendance was recorded)
+        // Count total unique session tokens (distinct sessions where any attendance was recorded)
         const allAttendance = await Attendance.find({ status: 'Present' });
-        const uniqueDays = new Set(allAttendance.map(a => a.date.toISOString().split('T')[0]));
-        const totalSessions = uniqueDays.size || 1; // Avoid division by zero
+        const uniqueSessions = new Set(allAttendance.filter(a => a.sessionToken).map(a => a.sessionToken));
+        const totalSessions = uniqueSessions.size || 1; // Avoid division by zero
 
         const studentsWithAttendance = await Promise.all(students.map(async student => {
             const count = await Attendance.countDocuments({ student: student._id, status: 'Present' });
