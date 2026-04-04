@@ -32,11 +32,14 @@ router.post('/register-face', authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Invalid face descriptor' });
         }
 
-        const allRegisteredStudents = await Student.find({ registeredFace: true });
+        // Check if this face already exists under ANY other student
+        const allRegisteredStudents = await Student.find({ registeredFace: true, _id: { $ne: req.user.id } });
         for (let student of allRegisteredStudents) {
             const distance = euclideanDistance(descriptor, student.faceDescriptor);
             if (distance < 0.55) {
-                return res.status(400).json({ message: 'Face is already saved' });
+                return res.status(400).json({ 
+                    message: `This face is already registered under Roll No: ${student.rollNumber}. Each face can only be linked to one account.` 
+                });
             }
         }
 
@@ -74,11 +77,23 @@ router.post('/mark', authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Face not registered yet' });
         }
 
-        const distance = euclideanDistance(descriptor, student.faceDescriptor);
-        const threshold = 0.55; // 0.6 is typical, 0.55 is slightly stricter
+        // Verify the face matches the logged-in student
+        const distanceToSelf = euclideanDistance(descriptor, student.faceDescriptor);
+        const threshold = 0.55;
 
-        if (distance > threshold) {
-            return res.status(400).json({ message: 'Face does not match the registered user', distance });
+        if (distanceToSelf > threshold) {
+            return res.status(400).json({ message: 'Face does not match your registered profile. Proxy attendance is not allowed.', distance: distanceToSelf });
+        }
+
+        // Cross-check: ensure this face is not a closer match to ANY other student (anti-proxy)
+        const otherStudents = await Student.find({ registeredFace: true, _id: { $ne: req.user.id } });
+        for (let other of otherStudents) {
+            const distanceToOther = euclideanDistance(descriptor, other.faceDescriptor);
+            if (distanceToOther < distanceToSelf) {
+                return res.status(400).json({ 
+                    message: 'Biometric mismatch: This face more closely matches another registered student. Proxy attendance blocked.' 
+                });
+            }
         }
 
         // Check if attendance already marked today
