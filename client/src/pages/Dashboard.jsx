@@ -54,16 +54,16 @@ const Dashboard = ({ user, setUser }) => {
     }
   };
 
-  const addReminder = async (e) => {
-    e.preventDefault();
+  const addReminder = async () => {
     if (!newReminder.trim()) return;
     setAddingReminder(true);
     try {
-        const res = await api.post('/reminders', { text: newReminder });
-        setReminders([res.data, ...reminders]);
+        const res = await api.post('/reminders', { text: newReminder.trim() });
+        setReminders(prev => [res.data, ...prev]);
         setNewReminder('');
     } catch (err) {
         console.error("Failed to add reminder", err);
+        alert('Failed to add reminder. Please check your connection.');
     } finally {
         setAddingReminder(false);
     }
@@ -72,7 +72,7 @@ const Dashboard = ({ user, setUser }) => {
   const toggleReminder = async (id) => {
     try {
         const res = await api.put(`/reminders/${id}`);
-        setReminders(reminders.map(r => r._id === id ? res.data : r));
+        setReminders(prev => prev.map(r => r._id === id ? res.data : r));
     } catch (err) {
         console.error("Failed to toggle reminder", err);
     }
@@ -81,9 +81,16 @@ const Dashboard = ({ user, setUser }) => {
   const deleteReminder = async (id) => {
     try {
         await api.delete(`/reminders/${id}`);
-        setReminders(reminders.filter(r => r._id !== id));
+        setReminders(prev => prev.filter(r => r._id !== id));
     } catch (err) {
         console.error("Failed to delete reminder", err);
+    }
+  };
+
+  const handleReminderKeyDown = (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        addReminder();
     }
   };
 
@@ -264,19 +271,20 @@ const Dashboard = ({ user, setUser }) => {
                     <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <Bell size={24} color="var(--primary)" /> Smart Reminders
                     </h2>
-                    <form onSubmit={addReminder} style={{ display: 'flex', gap: '10px', marginBottom: '2rem' }}>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '2rem' }}>
                         <input 
                             type="text" 
                             className="input-field" 
                             placeholder="Add a new reminder (e.g. Complete DS assignment)..." 
                             value={newReminder}
                             onChange={(e) => setNewReminder(e.target.value)}
+                            onKeyDown={handleReminderKeyDown}
                             style={{ flex: 1, margin: 0, padding: '0.8rem 1.2rem' }}
                         />
-                        <button type="submit" className="btn-primary" disabled={addingReminder || !newReminder.trim()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.8rem 1.5rem' }}>
+                        <button type="button" className="btn-primary" disabled={addingReminder || !newReminder.trim()} onClick={addReminder} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.8rem 1.5rem', whiteSpace: 'nowrap' }}>
                             <Plus size={20} /> Add
                         </button>
-                    </form>
+                    </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {reminders.filter(r => !r.completed).length === 0 ? (
