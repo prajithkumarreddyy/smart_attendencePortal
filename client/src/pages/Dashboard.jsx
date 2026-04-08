@@ -259,7 +259,7 @@ const Dashboard = ({ user, setUser }) => {
         )}
 
         {activeTab === 'reminders' && (
-            <div className="animate-fadeIn" style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div className="animate-fadeIn">
                 <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
                     <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <Bell size={24} color="var(--primary)" /> Smart Reminders
@@ -279,15 +279,17 @@ const Dashboard = ({ user, setUser }) => {
                     </form>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {reminders.length === 0 ? (
+                        {reminders.filter(r => !r.completed).length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
                                 <div style={{ background: 'rgba(79, 70, 229, 0.05)', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                                     <Bell size={30} opacity={0.3} />
                                 </div>
-                                <p>No reminders yet. Stay organized by adding your tasks here!</p>
+                                <p>No active reminders. Stay organized by adding your tasks here!</p>
                             </div>
                         ) : (
-                            reminders.map(reminder => (
+                            reminders
+                                .filter(r => !r.completed)
+                                .map(reminder => (
                                 <div 
                                     key={reminder._id} 
                                     className="glass-panel animate-fadeIn" 
