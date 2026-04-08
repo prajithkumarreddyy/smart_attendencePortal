@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, UserCheck, DollarSign, Calendar, BookOpen, Camera, LogOut, Shield, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, UserCheck, DollarSign, Calendar, BookOpen, Camera, LogOut, Shield, Menu, X, Bell } from 'lucide-react';
 
 const Sidebar = ({ role, activeTab, setActiveTab, name, logout }) => {
 
@@ -14,6 +14,7 @@ const Sidebar = ({ role, activeTab, setActiveTab, name, logout }) => {
 
     const studentLinks = [
         { id: 'overview', label: 'My Attendance', icon: <LayoutDashboard size={20} /> },
+        { id: 'reminders', label: 'My Reminders', icon: <Bell size={20} /> },
         { id: 'scan', label: 'Face Scanner', icon: <Camera size={20} /> }
     ];
 

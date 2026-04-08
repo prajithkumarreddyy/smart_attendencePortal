@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Camera, CheckCircle, Clock, LogOut } from 'lucide-react';
+import { Camera, CheckCircle, Clock, LogOut, Bell, Plus, Trash2, Check, X } from 'lucide-react';
 import api from '../api';
 import Sidebar from '../components/Sidebar';
 import FaceScanner from '../components/FaceScanner';
@@ -24,6 +24,9 @@ const Dashboard = ({ user, setUser }) => {
   const [attendanceStats, setAttendanceStats] = useState({ totalSessions: 0, presentCount: 0, percentage: 0 });
   const [loading, setLoading] = useState(true);
   const [urlToken, setUrlToken] = useState(null);
+  const [reminders, setReminders] = useState([]);
+  const [newReminder, setNewReminder] = useState('');
+  const [addingReminder, setAddingReminder] = useState(false);
 
   const fetchRecords = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -39,6 +42,48 @@ const Dashboard = ({ user, setUser }) => {
         console.error("Failed to fetch records", err);
     } finally {
         if (!silent) setLoading(false);
+    }
+  };
+
+  const fetchReminders = async () => {
+    try {
+        const res = await api.get('/reminders');
+        setReminders(res.data);
+    } catch (err) {
+        console.error("Failed to fetch reminders", err);
+    }
+  };
+
+  const addReminder = async (e) => {
+    e.preventDefault();
+    if (!newReminder.trim()) return;
+    setAddingReminder(true);
+    try {
+        const res = await api.post('/reminders', { text: newReminder });
+        setReminders([res.data, ...reminders]);
+        setNewReminder('');
+    } catch (err) {
+        console.error("Failed to add reminder", err);
+    } finally {
+        setAddingReminder(false);
+    }
+  };
+
+  const toggleReminder = async (id) => {
+    try {
+        const res = await api.put(`/reminders/${id}`);
+        setReminders(reminders.map(r => r._id === id ? res.data : r));
+    } catch (err) {
+        console.error("Failed to toggle reminder", err);
+    }
+  };
+
+  const deleteReminder = async (id) => {
+    try {
+        await api.delete(`/reminders/${id}`);
+        setReminders(reminders.filter(r => r._id !== id));
+    } catch (err) {
+        console.error("Failed to delete reminder", err);
     }
   };
 
@@ -75,6 +120,8 @@ const Dashboard = ({ user, setUser }) => {
         };
         refreshData();
         interval = setInterval(() => refreshData(true), 3000);
+    } else if (activeTab === 'reminders') {
+        fetchReminders();
     }
     return () => { if (interval) clearInterval(interval); };
   }, [activeTab]);
@@ -207,6 +254,97 @@ const Dashboard = ({ user, setUser }) => {
                             </table>
                         </div>
                     )}
+                </div>
+            </div>
+        )}
+
+        {activeTab === 'reminders' && (
+            <div className="animate-fadeIn" style={{ maxWidth: '800px', margin: '0 auto' }}>
+                <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Bell size={24} color="var(--primary)" /> Smart Reminders
+                    </h2>
+                    <form onSubmit={addReminder} style={{ display: 'flex', gap: '10px', marginBottom: '2rem' }}>
+                        <input 
+                            type="text" 
+                            className="input-field" 
+                            placeholder="Add a new reminder (e.g. Complete DS assignment)..." 
+                            value={newReminder}
+                            onChange={(e) => setNewReminder(e.target.value)}
+                            style={{ flex: 1, margin: 0, padding: '0.8rem 1.2rem' }}
+                        />
+                        <button type="submit" className="btn-primary" disabled={addingReminder || !newReminder.trim()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.8rem 1.5rem' }}>
+                            <Plus size={20} /> Add
+                        </button>
+                    </form>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {reminders.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+                                <div style={{ background: 'rgba(79, 70, 229, 0.05)', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                                    <Bell size={30} opacity={0.3} />
+                                </div>
+                                <p>No reminders yet. Stay organized by adding your tasks here!</p>
+                            </div>
+                        ) : (
+                            reminders.map(reminder => (
+                                <div 
+                                    key={reminder._id} 
+                                    className="glass-panel animate-fadeIn" 
+                                    style={{ 
+                                        padding: '1rem 1.5rem', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: '15px',
+                                        background: reminder.completed ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.6)',
+                                        border: reminder.completed ? '1px solid transparent' : '1px solid var(--glass-border)',
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                >
+                                    <button 
+                                        onClick={() => toggleReminder(reminder._id)}
+                                        style={{ 
+                                            width: '24px', height: '24px', borderRadius: '6px', 
+                                            border: reminder.completed ? 'none' : '2px solid var(--primary)', 
+                                            background: reminder.completed ? 'var(--success)' : 'transparent',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            cursor: 'pointer', transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {reminder.completed && <Check size={16} color="white" />}
+                                    </button>
+                                    
+                                    <div style={{ flex: 1 }}>
+                                        <p style={{ 
+                                            margin: 0, 
+                                            fontSize: '1rem', 
+                                            color: reminder.completed ? 'var(--text-muted)' : 'var(--text-main)',
+                                            textDecoration: reminder.completed ? 'line-through' : 'none',
+                                            transition: 'all 0.2s'
+                                        }}>
+                                            {reminder.text}
+                                        </p>
+                                        <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                            Added {new Date(reminder.createdAt).toLocaleDateString()}
+                                        </small>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => deleteReminder(reminder._id)}
+                                        style={{ 
+                                            background: 'none', border: 'none', color: 'rgba(239, 68, 68, 0.6)', 
+                                            cursor: 'pointer', padding: '8px', borderRadius: '8px',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                                        onMouseOut={e => e.currentTarget.style.background = 'none'}
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
             </div>
         )}
