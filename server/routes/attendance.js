@@ -70,45 +70,20 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
     return R * c; // Distance in meters
 };
 
-// Mark attendance securely utilizing dynamic QR Token
+// Mark attendance securely using face recognition (no QR or geofencing required)
 router.post('/mark', authMiddleware, async (req, res) => {
     try {
-        const { descriptor, sessionToken, location } = req.body;
+        const { descriptor, sessionToken } = req.body;
         if (!descriptor || !Array.isArray(descriptor) || descriptor.length !== 128) {
             return res.status(400).json({ message: 'Invalid face descriptor' });
         }
-        if (!sessionToken) {
-            return res.status(403).json({ message: 'Terminal Security: Missing Class QR Token. You must scan the live room QR code.' });
-        }
-        
-        try {
-            const decoded = jwt.verify(sessionToken, process.env.JWT_SECRET);
-            if (decoded.type !== 'attendance_session') throw new Error('Invalid token type');
-        } catch (err) {
-            return res.status(403).json({ message: 'QR Code is expired or invalid. Ask the professor to generate a new live session.' });
-        }
-
-        // --- GEOFENCING VERIFICATION ---
-        const collegeLat = parseFloat(process.env.COLLEGE_LAT);
-        const collegeLng = parseFloat(process.env.COLLEGE_LNG);
-        const radius = parseFloat(process.env.COLLEGE_RADIUS) || 200;
-
-        if (!location || !location.lat || !location.lng) {
-            return res.status(400).json({ message: 'GPS location required to verify you are on campus.' });
-        }
-
-        const distance = getDistance(location.lat, location.lng, collegeLat, collegeLng);
-        if (distance > radius) {
-            return res.status(403).json({ 
-                message: `Location Access Denied: You are ${Math.round(distance)}m away from college. Attendance only allowed within ${radius}m of campus.`,
-                distance
-            });
-        }
-        // -------------------------------
 
         const student = await Student.findById(req.user.id);
+        if (!student) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
         if (!student.registeredFace) {
-            return res.status(400).json({ message: 'Face not registered yet' });
+            return res.status(400).json({ message: 'Face not registered yet. Please register your face first.' });
         }
 
         // Verify the face matches the logged-in student
@@ -130,24 +105,29 @@ router.post('/mark', authMiddleware, async (req, res) => {
             }
         }
 
-        // Check if attendance already marked for this specific session
+        // Use a daily token: one attendance per student per day
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
         const existingAttendance = await Attendance.findOne({
             student: req.user.id,
-            sessionToken: sessionToken
+            date: { $gte: today, $lt: tomorrow }
         });
 
         if (existingAttendance) {
-            return res.status(400).json({ message: 'Attendance already marked for this session' });
+            return res.status(400).json({ message: 'Attendance already marked for today.' });
         }
 
         const newAttendance = new Attendance({
             student: student._id,
             status: 'Present',
-            sessionToken: sessionToken,
+            sessionToken: sessionToken || `daily-${req.user.id}-${today.toISOString().split('T')[0]}`,
             date: new Date()
         });
         await newAttendance.save();
-        res.json({ message: 'Attendance successfully marked', distance: distanceToSelf, locationDistance: distance });
+        res.json({ message: 'Attendance successfully marked!', distance: distanceToSelf });
 
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });
