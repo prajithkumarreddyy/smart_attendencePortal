@@ -1,5 +1,7 @@
 node_modules/
 .env
+.env*
+.vercel
 dist/
 build/
 .DS_Store

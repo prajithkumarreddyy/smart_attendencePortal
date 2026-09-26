@@ -1,6 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const Student = require('../models/Student');
 const Employee = require('../models/Employee');
 const Fee = require('../models/Fee');
