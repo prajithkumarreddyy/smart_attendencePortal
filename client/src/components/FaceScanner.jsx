@@ -228,9 +228,9 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
                     descriptor: formattedDescriptor,
                     sessionToken: qrToken || null
                 });
-                setStatus('✅ Attendance Marked Successfully!');
+                setStatus('✅ Attendance Marked Successfully! Returning to Home...');
                 stopVideo();
-                setTimeout(() => onCaptureSuccess(), 1500);
+                setTimeout(() => onCaptureSuccess(), 1000);
             }
         } catch (err) {
             setStatus('❌ ' + (err.response?.data?.message || err.message));

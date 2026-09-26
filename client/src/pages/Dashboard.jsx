@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Camera, CheckCircle, Clock, LogOut } from 'lucide-react';
 import api from '../api';
 import Sidebar from '../components/Sidebar';
@@ -17,6 +17,7 @@ const Dashboard = ({ user, setUser }) => {
   }
 
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('overview');
   const [scanMode, setScanMode] = useState('');
@@ -43,8 +44,7 @@ const Dashboard = ({ user, setUser }) => {
   };
 
   useEffect(() => {
-    // Read sessionToken from URL (direct QR scan while logged in) 
-    // OR from sessionStorage (QR scan → login → redirect, where Login.jsx saved it)
+    // Read sessionToken from URL or sessionStorage
     const params = new URLSearchParams(location.search);
     let token = params.get('sessionToken');
 
@@ -55,18 +55,18 @@ const Dashboard = ({ user, setUser }) => {
 
     if (token) {
         setUrlToken(token);
+        // Clean URL so react router location doesn't retain the token
+        navigate('/', { replace: true });
         if (user.registeredFace) {
-            // Face already registered — jump straight to face scanner
             setScanMode('mark');
             setActiveTab('scan');
         } else {
-            // Face not registered — show overview but keep the token
             setActiveTab('overview');
         }
-        // Clean the token from the URL bar
-        window.history.replaceState({}, document.title, window.location.pathname);
     }
+  }, [location.search]);
 
+  useEffect(() => {
     let interval;
     if (activeTab === 'overview') {
         const refreshData = async (silent = false) => {
@@ -79,7 +79,6 @@ const Dashboard = ({ user, setUser }) => {
     return () => { if (interval) clearInterval(interval); };
   }, [activeTab]);
 
-
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
@@ -91,9 +90,13 @@ const Dashboard = ({ user, setUser }) => {
   };
 
   const handleScanSuccess = () => {
+    setUrlToken(null);
+    setScanMode('');
     setActiveTab('overview');
+    navigate('/', { replace: true });
+    fetchRecords(false);
     if (scanMode === 'register') {
-        setUser({ ...user, registeredFace: true });
+        setUser(prev => ({ ...prev, registeredFace: true }));
     }
   };
 
@@ -220,8 +223,13 @@ const Dashboard = ({ user, setUser }) => {
                     mode={scanMode} 
                     isRegistered={user.registeredFace}
                     initialToken={urlToken}
-                    onCaptureSuccess={handleScanSuccess} 
-                    onCancel={() => setActiveTab('overview')} 
+                    onCaptureSuccess={handleScanSuccess}
+                    onCancel={() => {
+                        setScanMode('');
+                        setUrlToken(null);
+                        setActiveTab('overview');
+                        navigate('/', { replace: true });
+                    }} 
                 />
             </div>
         )}
