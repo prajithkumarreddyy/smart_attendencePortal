@@ -163,9 +163,9 @@ const Dashboard = ({ user, setUser }) => {
                         <button 
                             className="btn-primary" 
                             disabled={!user.registeredFace}
-                            onClick={() => startScan('qr-scan')}
+                            onClick={() => startScan('mark')}
                         >
-                            Scan Room QR
+                            Mark Attendance (Face ID)
                         </button>
                         {!user.registeredFace && <small style={{ color: 'var(--danger)', marginTop: '8px' }}>Must register face first.</small>}
                     </div>
