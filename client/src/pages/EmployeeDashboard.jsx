@@ -257,7 +257,7 @@ const EmployeeDashboard = ({ user, setUser }) => {
                                     <div className="glass-panel animate-fadeIn" style={{ padding: '4rem 2rem', textAlign: 'center', height: 'fit-content' }}>
                                         <h2 style={{ fontSize: '2rem', marginBottom: '1.5rem' }}>Active Transmission</h2>
                                         <div style={{ background: 'white', padding: '2rem', borderRadius: '16px', display: 'inline-block', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
-                                            <QRCodeSVG value={`${window.location.origin}/?sessionToken=${qrToken}`} size={280} />
+                                            <QRCodeSVG value={`${window.location.origin}/dashboard?sessionToken=${qrToken}`} size={280} />
                                             <div style={{ marginTop: '1.5rem' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '1rem' }}>
                                                     <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: timeLeft > 30 ? 'var(--success)' : 'var(--danger)', animation: 'pulse 2s infinite' }}></div>

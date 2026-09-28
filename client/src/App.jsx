@@ -12,11 +12,20 @@ const ProtectedRoot = ({ user }) => {
   const sessionToken = params.get('sessionToken');
 
   if (user) {
-    // Already logged in — go to dashboard, pass token along
     return <Navigate to={sessionToken ? `/dashboard?sessionToken=${sessionToken}` : '/dashboard'} replace />;
   }
-  // Not logged in — send to login, but carry the sessionToken so it survives
   return <Navigate to={sessionToken ? `/login?sessionToken=${sessionToken}` : '/login'} replace />;
+};
+
+const ProtectedDashboard = ({ user, setUser }) => {
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const sessionToken = params.get('sessionToken');
+
+  if (!user) {
+    return <Navigate to={sessionToken ? `/login?sessionToken=${sessionToken}` : '/login'} replace />;
+  }
+  return <Dashboard user={user} setUser={setUser} />;
 };
 
 function App() {
@@ -52,9 +61,9 @@ function App() {
       <div className="app-container animate-fadeIn">
         <Routes>
           <Route path="/" element={<ProtectedRoot user={user} />} />
-          <Route path="/login" element={!user ? <Login setUser={setUser} /> : <Navigate to="/dashboard" />} />
-          <Route path="/register" element={!user ? <Register setUser={setUser} /> : <Navigate to="/dashboard" />} />
-          <Route path="/dashboard" element={user ? <Dashboard user={user} setUser={setUser} /> : <Navigate to="/login" />} />
+          <Route path="/login" element={!user ? <Login setUser={setUser} /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/register" element={!user ? <Register setUser={setUser} /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<ProtectedDashboard user={user} setUser={setUser} />} />
         </Routes>
       </div>
     </Router>

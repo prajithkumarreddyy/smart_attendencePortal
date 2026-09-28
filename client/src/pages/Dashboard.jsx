@@ -19,12 +19,21 @@ const Dashboard = ({ user, setUser }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('overview');
-  const [scanMode, setScanMode] = useState('');
+  // If a sessionToken was passed via URL or stored during login from QR
+  const searchParams = new URLSearchParams(location.search);
+  const tokenFromUrl = searchParams.get('sessionToken');
+  const tokenFromStorage = sessionStorage.getItem('pendingSessionToken');
+  const initialSessionToken = tokenFromUrl || tokenFromStorage || null;
+
+  const shouldAutoMark = !!(initialSessionToken && user.registeredFace);
+  const shouldAutoRegister = !!(initialSessionToken && !user.registeredFace);
+
+  const [activeTab, setActiveTab] = useState(() => (initialSessionToken ? 'scan' : 'overview'));
+  const [scanMode, setScanMode] = useState(() => (shouldAutoMark ? 'mark' : shouldAutoRegister ? 'register' : ''));
+  const [urlToken, setUrlToken] = useState(() => initialSessionToken);
   const [records, setRecords] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState({ totalSessions: 0, presentCount: 0, percentage: 0 });
   const [loading, setLoading] = useState(true);
-  const [urlToken, setUrlToken] = useState(null);
 
   const fetchRecords = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -43,28 +52,32 @@ const Dashboard = ({ user, setUser }) => {
     }
   };
 
+  // Clean pending storage and URL query params without unmounting or re-navigating
   useEffect(() => {
-    // Read sessionToken from URL or sessionStorage
+    if (sessionStorage.getItem('pendingSessionToken')) {
+      sessionStorage.removeItem('pendingSessionToken');
+    }
+    if (window.location.search.includes('sessionToken')) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  // Listen to any in-app dynamic sessionToken changes in location.search
+  useEffect(() => {
     const params = new URLSearchParams(location.search);
-    let token = params.get('sessionToken');
-
-    if (!token) {
-      token = sessionStorage.getItem('pendingSessionToken');
-      if (token) sessionStorage.removeItem('pendingSessionToken');
-    }
-
+    const token = params.get('sessionToken');
     if (token) {
-        setUrlToken(token);
-        // Clean URL so react router location doesn't retain the token
-        navigate('/', { replace: true });
-        if (user.registeredFace) {
-            setScanMode('mark');
-            setActiveTab('scan');
-        } else {
-            setActiveTab('overview');
-        }
+      setUrlToken(token);
+      if (user.registeredFace) {
+        setScanMode('mark');
+        setActiveTab('scan');
+      } else {
+        setScanMode('register');
+        setActiveTab('scan');
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [location.search]);
+  }, [location.search, user.registeredFace]);
 
   useEffect(() => {
     let interval;
@@ -93,7 +106,6 @@ const Dashboard = ({ user, setUser }) => {
     setUrlToken(null);
     setScanMode('');
     setActiveTab('overview');
-    navigate('/', { replace: true });
     fetchRecords(false);
     if (scanMode === 'register') {
         setUser(prev => ({ ...prev, registeredFace: true }));
@@ -228,7 +240,6 @@ const Dashboard = ({ user, setUser }) => {
                         setScanMode('');
                         setUrlToken(null);
                         setActiveTab('overview');
-                        navigate('/', { replace: true });
                     }} 
                 />
             </div>
