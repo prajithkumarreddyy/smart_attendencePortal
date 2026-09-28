@@ -20,15 +20,24 @@ const employeeAuth = (req, res, next) => {
 
 router.get('/students', employeeAuth, async (req, res) => {
     try {
-        const students = await Student.find().select('name rollNumber registeredFace');
-        
-        // Count total unique session tokens (distinct sessions where any attendance was recorded)
-        const allAttendance = await Attendance.find({ status: 'Present' });
-        const uniqueSessions = new Set(allAttendance.filter(a => a.sessionToken).map(a => a.sessionToken));
-        const totalSessions = uniqueSessions.size || 1; // Avoid division by zero
+        const [students, attendanceCounts, distinctSessions] = await Promise.all([
+            Student.find().select('name rollNumber registeredFace').lean(),
+            Attendance.aggregate([
+                { $match: { status: 'Present' } },
+                { $group: { _id: '$student', count: { $sum: 1 } } }
+            ]),
+            Attendance.distinct('sessionToken', { status: 'Present', sessionToken: { $ne: null } })
+        ]);
 
-        const studentsWithAttendance = await Promise.all(students.map(async student => {
-            const count = await Attendance.countDocuments({ student: student._id, status: 'Present' });
+        const countMap = new Map();
+        for (const item of attendanceCounts) {
+            countMap.set(String(item._id), item.count);
+        }
+
+        const totalSessions = distinctSessions.length || 1; // Avoid division by zero
+
+        const studentsWithAttendance = students.map(student => {
+            const count = countMap.get(String(student._id)) || 0;
             const percentage = Math.round((count / totalSessions) * 100);
             return {
                 roll: student.rollNumber,
@@ -40,7 +49,8 @@ router.get('/students', employeeAuth, async (req, res) => {
                     ? `${count}/${totalSessions} (${percentage}%)` 
                     : 'Biometric Setup Pending'
             };
-        }));
+        });
+
         res.json(studentsWithAttendance);
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });
@@ -66,19 +76,25 @@ router.get('/live-attendance', employeeAuth, async (req, res) => {
     try {
         const { token } = req.query;
         if (!token) {
-            return res.json({ totalStudents: await Student.countDocuments(), presentCount: 0, presentStudents: [] });
+            const totalStudents = await Student.countDocuments();
+            return res.json({ totalStudents, presentCount: 0, presentStudents: [] });
         }
 
-        // Find attendance records strictly linked to this specific QR cryptographic period
-        const todaysAttendance = await Attendance.find({ sessionToken: token, status: 'Present' }).populate('student', 'name rollNumber');
-        
-        // Count all universally registered students in DB
-        const totalStudents = await Student.countDocuments();
+        const [todaysAttendance, totalStudents] = await Promise.all([
+            Attendance.find({ sessionToken: token, status: 'Present' })
+                .populate('student', 'name rollNumber')
+                .lean(),
+            Student.countDocuments()
+        ]);
+
+        const presentStudents = todaysAttendance
+            .filter(a => a.student)
+            .map(a => ({ roll: a.student.rollNumber, name: a.student.name }));
 
         res.json({
             totalStudents,
-            presentCount: todaysAttendance.length,
-            presentStudents: todaysAttendance.map(a => ({ roll: a.student.rollNumber, name: a.student.name }))
+            presentCount: presentStudents.length,
+            presentStudents
         });
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });

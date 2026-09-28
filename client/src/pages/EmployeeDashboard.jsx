@@ -12,8 +12,12 @@ const EmployeeDashboard = ({ user, setUser }) => {
     const [currentSessionId, setCurrentSessionId] = useState(null);
     const [timeLeft, setTimeLeft] = useState(120);
     const [liveAttendance, setLiveAttendance] = useState({ totalStudents: 0, presentCount: 0, presentStudents: [] });
+    const [generatingQR, setGeneratingQR] = useState(false);
+    const [markingRoll, setMarkingRoll] = useState(null);
 
     const handleGenerateQR = async () => {
+        if (generatingQR) return;
+        setGeneratingQR(true);
         try {
             const res = await api.post('/employee/generate-session');
             setQrToken(res.data.sessionToken);
@@ -22,10 +26,14 @@ const EmployeeDashboard = ({ user, setUser }) => {
             setTimeLeft(120); // Reset timer to exactly 2 minutes
         } catch (err) {
             alert('Failed to generate secure attendance session.');
+        } finally {
+            setGeneratingQR(false);
         }
     };
 
     const handleManualMarkDirect = async (roll) => {
+        if (markingRoll === roll) return;
+        setMarkingRoll(roll);
         try {
             await api.post('/employee/mark-manual', { rollNumber: roll, sessionToken: currentSessionId });
             // Optimistically update matrix without waiting for the next polling cycle hit
@@ -39,6 +47,8 @@ const EmployeeDashboard = ({ user, setUser }) => {
             }
         } catch (err) {
             alert(err.response?.data?.message || 'Failed to mark manually');
+        } finally {
+            setMarkingRoll(null);
         }
     };
 
@@ -58,40 +68,61 @@ const EmployeeDashboard = ({ user, setUser }) => {
         return () => clearInterval(timer);
     }, [qrToken, timeLeft]);
 
+    // Fetch students list on demand without choking network
     useEffect(() => {
         let listPolling;
-        if (activeTab === 'students' || activeTab === 'attendance') {
+        if (activeTab === 'students' || (activeTab === 'attendance' && studentList.length === 0)) {
             const fetchStudents = async (silent = false) => {
-                if (!silent) setLoading(true);
+                if (!silent && studentList.length === 0) setLoading(true);
                 try {
                     const res = await api.get('/employee/students');
                     setStudentList(res.data);
                 } catch (err) {
                     console.error(err);
                 } finally {
-                    if (!silent) setLoading(false);
+                    setLoading(false);
                 }
             };
-            fetchStudents();
-            listPolling = setInterval(() => fetchStudents(true), 3000);
+            fetchStudents(studentList.length > 0);
+            
+            // Only poll student list when on students tab, with relaxed 15s interval
+            if (activeTab === 'students') {
+                listPolling = setInterval(() => fetchStudents(true), 15000);
+            }
         }
 
+        return () => {
+            if (listPolling) clearInterval(listPolling);
+        };
+    }, [activeTab]);
+
+    // Poll live attendance only when a session is actively broadcasting
+    useEffect(() => {
         let polling;
-        if (activeTab === 'attendance' && currentSessionId) {
-            const fetchLive = () => {
-                api.get(`/employee/live-attendance?token=${currentSessionId}`)
-                   .then(res => setLiveAttendance(res.data))
-                   .catch(console.error);
+        let isFetching = false;
+
+        if (activeTab === 'attendance' && currentSessionId && qrToken) {
+            const fetchLive = async () => {
+                if (isFetching) return;
+                isFetching = true;
+                try {
+                    const res = await api.get(`/employee/live-attendance?token=${currentSessionId}`);
+                    setLiveAttendance(res.data);
+                } catch (err) {
+                    console.error(err);
+                } finally {
+                    isFetching = false;
+                }
             };
+
             fetchLive(); // Boot instantly
-            polling = setInterval(fetchLive, 2500); // Polling telemetry
+            polling = setInterval(fetchLive, 2500);
         }
 
         return () => {
             if (polling) clearInterval(polling);
-            if (listPolling) clearInterval(listPolling);
         };
-    }, [activeTab, currentSessionId]);
+    }, [activeTab, currentSessionId, qrToken]);
 
     const logout = () => {
         localStorage.removeItem('token');

@@ -72,36 +72,48 @@ router.post('/mark', authMiddleware, async (req, res) => {
 
         // Verify the face matches the logged-in student
         const distanceToSelf = euclideanDistance(descriptor, student.faceDescriptor);
-        const threshold = 0.55;
+        const threshold = 0.58; // Standard face-api recognition threshold for reliable matching
 
         if (distanceToSelf > threshold) {
-            return res.status(400).json({ message: 'Face does not match your registered profile. Proxy attendance is not allowed.', distance: distanceToSelf });
+            return res.status(400).json({ 
+                message: `Face does not match your registered profile (distance: ${distanceToSelf.toFixed(2)}). Please align your face directly towards the camera.`, 
+                distance: distanceToSelf 
+            });
         }
 
-        // Cross-check: ensure this face is not a closer match to ANY other student (anti-proxy)
+        // Cross-check: ensure this face is not a significantly closer match to ANY other student (anti-proxy)
         const otherStudents = await Student.find({ registeredFace: true, _id: { $ne: req.user.id } });
         for (let other of otherStudents) {
             const distanceToOther = euclideanDistance(descriptor, other.faceDescriptor);
-            if (distanceToOther < distanceToSelf) {
+            if (distanceToOther < 0.45 && distanceToOther < distanceToSelf - 0.10) {
                 return res.status(400).json({ 
-                    message: 'Biometric mismatch: This face more closely matches another registered student. Proxy attendance blocked.' 
+                    message: 'Biometric mismatch: This face matches another registered student. Proxy attendance blocked.' 
                 });
             }
         }
 
-        // Use a daily token: one attendance per student per day
+        // Check if attendance already marked
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        const existingAttendance = await Attendance.findOne({
-            student: req.user.id,
-            date: { $gte: today, $lt: tomorrow }
-        });
-
-        if (existingAttendance) {
-            return res.status(400).json({ message: 'Attendance already marked for today.' });
+        if (sessionToken) {
+            const existingAttendance = await Attendance.findOne({
+                student: req.user.id,
+                sessionToken: sessionToken
+            });
+            if (existingAttendance) {
+                return res.status(400).json({ message: 'Attendance already marked for this session.' });
+            }
+        } else {
+            const existingAttendance = await Attendance.findOne({
+                student: req.user.id,
+                date: { $gte: today, $lt: tomorrow }
+            });
+            if (existingAttendance) {
+                return res.status(400).json({ message: 'Attendance already marked for today.' });
+            }
         }
 
         const newAttendance = new Attendance({
