@@ -36,7 +36,7 @@ router.post('/register-face', authMiddleware, async (req, res) => {
         const allRegisteredStudents = await Student.find({ registeredFace: true, _id: { $ne: req.user.id } });
         for (let student of allRegisteredStudents) {
             const distance = euclideanDistance(descriptor, student.faceDescriptor);
-            if (distance < 0.55) {
+            if (distance < 0.70) {
                 return res.status(400).json({ 
                     message: `This face is already registered under Roll No: ${student.rollNumber}. Each face can only be linked to one account.` 
                 });
@@ -72,7 +72,7 @@ router.post('/mark', authMiddleware, async (req, res) => {
 
         // Verify the face matches the logged-in student
         const distanceToSelf = euclideanDistance(descriptor, student.faceDescriptor);
-        const threshold = 0.58; // Standard face-api recognition threshold for reliable matching
+        const threshold = 0.85; // Relaxed threshold — works with glasses, varied lighting, and mobile cameras
 
         if (distanceToSelf > threshold) {
             return res.status(400).json({ 
@@ -85,7 +85,7 @@ router.post('/mark', authMiddleware, async (req, res) => {
         const otherStudents = await Student.find({ registeredFace: true, _id: { $ne: req.user.id } });
         for (let other of otherStudents) {
             const distanceToOther = euclideanDistance(descriptor, other.faceDescriptor);
-            if (distanceToOther < 0.45 && distanceToOther < distanceToSelf - 0.10) {
+            if (distanceToOther < 0.65 && distanceToOther < distanceToSelf - 0.10) {
                 return res.status(400).json({ 
                     message: 'Biometric mismatch: This face matches another registered student. Proxy attendance blocked.' 
                 });

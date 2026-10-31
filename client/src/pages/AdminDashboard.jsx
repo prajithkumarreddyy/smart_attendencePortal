@@ -1,179 +1,327 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Briefcase, DollarSign, CheckSquare } from 'lucide-react';
+import { Users, Briefcase, DollarSign, CheckSquare, ShieldAlert, LayoutDashboard, Plus, X, RefreshCw } from 'lucide-react';
 import api from '../api';
 import Sidebar from '../components/Sidebar';
+import ExamProctoring from '../components/ExamProctoring';
 
 const AdminDashboard = ({ admin, setAdmin }) => {
-  const [activeTab, setActiveTab] = useState('metrics'); // metrics, students, employees, fees, attendance
+  const [activeTab, setActiveTab] = useState('metrics');
   const [metrics, setMetrics] = useState(null);
   const [dataList, setDataList] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [empForm, setEmpForm] = useState({ name: '', role: '', department: '', username: '', salary: '', password: '' });
 
   const handleCreateEmployee = async (e) => {
-      e.preventDefault();
-      try {
-          const res = await api.post('/admin/employees', empForm);
-          setDataList([...dataList, res.data]);
-          setShowAddEmployee(false);
-          setEmpForm({ name: '', role: '', department: '', username: '', salary: '', password: '' });
-      } catch (err) {
-          alert('Failed to create employee: ' + (err.response?.data?.error || err.response?.data?.message || err.message));
-      }
+    e.preventDefault();
+    try {
+      const res = await api.post('/admin/employees', empForm);
+      setDataList([...dataList, res.data]);
+      setShowAddEmployee(false);
+      setEmpForm({ name: '', role: '', department: '', username: '', salary: '', password: '' });
+    } catch (err) {
+      alert('Failed to create employee: ' + (err.response?.data?.error || err.response?.data?.message || err.message));
+    }
   };
 
   const handleResetFace = async (studentId) => {
-      if (!window.confirm("Are you sure you want to completely erase and unlock this student's face biometric data?")) return;
-      try {
-          await api.put(`/admin/students/${studentId}/reset-face`);
-          fetchData(activeTab);
-      } catch (err) {
-          alert("Failed to reset face data: " + (err.response?.data?.message || err.message));
-      }
+    if (!window.confirm("Reset this student's registered attendance face profile?")) return;
+    try {
+      await api.put(`/admin/students/${studentId}/reset-face`);
+      fetchData(activeTab);
+    } catch (err) {
+      alert('Failed to reset face: ' + (err.response?.data?.message || err.message));
+    }
   };
 
   const fetchData = async (endpoint, silent = false) => {
-      if (!silent) setLoading(true);
-      try {
-          // Token is automatically injected by global api.js intereceptor now
-          const res = await api.get(`/admin/${endpoint}`);
-          if (endpoint === 'metrics') setMetrics(res.data);
-          else setDataList(res.data);
-      } catch (err) {
-          console.error("Failed fetching", err);
-      } finally {
-          if (!silent) setLoading(false);
-      }
+    if (endpoint === 'exam') return;
+    if (!silent) setLoading(true);
+    try {
+      const res = await api.get(`/admin/${endpoint}`);
+      if (endpoint === 'metrics') setMetrics(res.data);
+      else setDataList(res.data);
+    } catch (err) {
+      console.error('Failed fetching', err);
+    } finally {
+      if (!silent) setLoading(false);
+    }
   };
 
   useEffect(() => {
+    if (activeTab !== 'exam') {
       fetchData(activeTab);
-      const interval = setInterval(() => fetchData(activeTab, true), 3000);
+      const interval = setInterval(() => fetchData(activeTab, true), 5000);
       return () => clearInterval(interval);
+    }
   }, [activeTab]);
 
   const logout = () => {
-      localStorage.removeItem('token');
-      setAdmin(null);
+    localStorage.removeItem('token');
+    setAdmin(null);
   };
 
-  const navItems = [
-      { id: 'metrics', label: 'Overview', icon: DollarSign },
-      { id: 'employees', label: 'Employees', icon: Briefcase },
-      { id: 'students', label: 'Students', icon: Users },
-      { id: 'fees', label: 'Fee Records', icon: DollarSign },
-      { id: 'attendance', label: 'Attendance', icon: CheckSquare }
-  ];
+  // ──────────────────────────────────────────────
+  //  KPI CARDS for Overview
+  // ──────────────────────────────────────────────
+  const MetricsView = () => {
+    if (!metrics) return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#8B949E', padding: '3rem' }}>
+        <RefreshCw size={18} className="animate-spin" /> Loading metrics…
+      </div>
+    );
+
+    const cards = [
+      { icon: Users,       color: '#4F8EF7', bg: 'rgba(79,142,247,0.12)',  label: 'Registered Students',  value: metrics.students },
+      { icon: Briefcase,   color: '#3FB950', bg: 'rgba(63,185,80,0.12)',   label: 'Active Staff',          value: metrics.employees },
+      { icon: DollarSign,  color: '#D29922', bg: 'rgba(210,153,34,0.12)', label: 'Fees Collected',        value: `$${metrics.totalFeesCollected?.toLocaleString() || 0}` },
+    ];
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        {/* KPI Row */}
+        <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+          {cards.map(({ icon: Icon, color, bg, label, value }) => (
+            <div key={label} className="stat-card">
+              <div className="stat-icon" style={{ background: bg }}>
+                <Icon size={18} color={color} />
+              </div>
+              <div>
+                <div className="stat-value" style={{ color }}>{value}</div>
+                <div className="stat-label">{label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="glass-panel" style={{ padding: '1.5rem' }}>
+          <h3 style={{ marginBottom: '1rem', color: '#8B949E', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: '600' }}>
+            Quick Actions
+          </h3>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            {[
+              { label: '🛡️ Exam Invigilation', tab: 'exam' },
+              { label: '👥 Manage Students', tab: 'students' },
+              { label: '📋 Attendance Log', tab: 'attendance' },
+              { label: '💼 Staff Roster', tab: 'employees' },
+            ].map(({ label, tab }) => (
+              <button
+                key={tab}
+                className="btn-secondary"
+                onClick={() => setActiveTab(tab)}
+                style={{ fontSize: '0.85rem' }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ──────────────────────────────────────────────
+  //  Data Tables
+  // ──────────────────────────────────────────────
+  const DataView = () => {
+    const tabConfig = {
+      students: {
+        title: 'Students',
+        columns: ['Name', 'Roll No.', 'Email', 'Face Enrolled', 'Actions'],
+      },
+      employees: {
+        title: 'Staff Roster',
+        columns: ['Name', 'Role', 'Department'],
+      },
+      fees: {
+        title: 'Fee Records',
+        columns: ['Student', 'Total', 'Paid', 'Due Date'],
+      },
+      attendance: {
+        title: 'Attendance Log',
+        columns: ['Student', 'Date & Time', 'Status'],
+      },
+    };
+
+    const cfg = tabConfig[activeTab];
+    if (!cfg) return null;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        {/* Header row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <h2 style={{ margin: 0 }}>{cfg.title}</h2>
+          {activeTab === 'employees' && (
+            <button
+              className="btn-primary"
+              onClick={() => setShowAddEmployee(!showAddEmployee)}
+              style={{ fontSize: '0.875rem' }}
+            >
+              {showAddEmployee ? <><X size={14} /> Cancel</> : <><Plus size={14} /> New Employee</>}
+            </button>
+          )}
+        </div>
+
+        {/* Add Employee Form */}
+        {activeTab === 'employees' && showAddEmployee && (
+          <div className="glass-panel animate-fadeIn" style={{ padding: '1.5rem' }}>
+            <h3 style={{ marginBottom: '1.25rem', fontSize: '1rem' }}>Create Employee Account</h3>
+            <form
+              onSubmit={handleCreateEmployee}
+              autoComplete="off"
+              className="emp-form-grid"
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}
+            >
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Full Name</label>
+                <input autoComplete="off" required className="input-field" placeholder="e.g. Dr. Sharma" value={empForm.name} onChange={e => setEmpForm({ ...empForm, name: e.target.value })} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Username</label>
+                <input autoComplete="new-password" required className="input-field" placeholder="login_id" type="text" value={empForm.username} onChange={e => setEmpForm({ ...empForm, username: e.target.value })} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Department</label>
+                <input autoComplete="off" required className="input-field" placeholder="e.g. Computer Science" value={empForm.department} onChange={e => setEmpForm({ ...empForm, department: e.target.value })} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Role / Designation</label>
+                <input autoComplete="off" required className="input-field" placeholder="e.g. Professor" value={empForm.role} onChange={e => setEmpForm({ ...empForm, role: e.target.value })} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Salary (₹)</label>
+                <input autoComplete="off" required className="input-field" placeholder="e.g. 85000" type="number" value={empForm.salary} onChange={e => setEmpForm({ ...empForm, salary: e.target.value })} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>Password</label>
+                <input autoComplete="new-password" required className="input-field" placeholder="••••••••" type="password" value={empForm.password} onChange={e => setEmpForm({ ...empForm, password: e.target.value })} />
+              </div>
+              <button type="submit" className="btn-primary" style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
+                Create Employee Account
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+          {loading ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: '#8B949E' }}>
+              <RefreshCw size={20} className="animate-spin" style={{ display: 'block', margin: '0 auto 10px auto' }} />
+              Loading records…
+            </div>
+          ) : dataList.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: '#8B949E', fontSize: '0.9rem' }}>
+              No records found.
+            </div>
+          ) : (
+            <div className="table-scroll" style={{ borderRadius: 0, border: 'none' }}>
+              <table>
+                <thead>
+                  <tr>
+                    {cfg.columns.map(col => <th key={col}>{col}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dataList.map((row, i) => (
+                    <tr key={i}>
+                      {activeTab === 'students' && (
+                        <>
+                          <td style={{ fontWeight: '600', color: '#E6EDF3' }}>{row.name}</td>
+                          <td style={{ fontFamily: 'monospace', color: '#8B949E' }}>{row.rollNumber}</td>
+                          <td style={{ color: '#8B949E', fontSize: '0.85rem' }}>{row.email}</td>
+                          <td>
+                            <span className={`badge ${row.registeredFace ? 'badge-success' : 'badge-danger'}`}>
+                              {row.registeredFace ? '✓ Enrolled' : '✗ Not Set'}
+                            </span>
+                          </td>
+                          <td>
+                            {row.registeredFace && (
+                              <button
+                                onClick={() => handleResetFace(row._id)}
+                                style={{
+                                  padding: '5px 12px', background: 'rgba(248, 81, 73, 0.1)',
+                                  color: '#F85149', border: '1px solid rgba(248, 81, 73, 0.3)',
+                                  borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: '500',
+                                  fontFamily: 'inherit', transition: 'all 0.15s',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(248, 81, 73, 0.2)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(248, 81, 73, 0.1)'; }}
+                              >
+                                Reset Face
+                              </button>
+                            )}
+                          </td>
+                        </>
+                      )}
+                      {activeTab === 'employees' && (
+                        <>
+                          <td style={{ fontWeight: '600', color: '#E6EDF3' }}>{row.name}</td>
+                          <td><span className="badge badge-primary">{row.role}</span></td>
+                          <td style={{ color: '#8B949E' }}>{row.department}</td>
+                        </>
+                      )}
+                      {activeTab === 'fees' && (
+                        <>
+                          <td style={{ fontWeight: '600', color: '#E6EDF3' }}>{row.student?.name} <span style={{ color: '#8B949E', fontWeight: 400 }}>({row.student?.rollNumber})</span></td>
+                          <td style={{ fontWeight: '600' }}>₹{row.totalAmount?.toLocaleString()}</td>
+                          <td style={{ color: '#3FB950', fontWeight: '600' }}>₹{row.paidAmount?.toLocaleString()}</td>
+                          <td style={{ color: '#8B949E', fontSize: '0.85rem' }}>{new Date(row.dueDate).toLocaleDateString()}</td>
+                        </>
+                      )}
+                      {activeTab === 'attendance' && (
+                        <>
+                          <td style={{ fontWeight: '600', color: '#E6EDF3' }}>{row.student?.name}</td>
+                          <td style={{ color: '#8B949E', fontSize: '0.85rem', fontFamily: 'monospace' }}>{new Date(row.date).toLocaleString()}</td>
+                          <td>
+                            <span className={`badge ${row.status === 'Present' ? 'badge-success' : 'badge-danger'}`}>
+                              {row.status}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const tabTitle = {
+    metrics: 'Overview',
+    exam: 'Exam Invigilation',
+    students: 'Students',
+    employees: 'Staff',
+    fees: 'Fee Records',
+    attendance: 'Attendance Log',
+  }[activeTab] || activeTab;
 
   return (
-      <div className="dashboard-layout">
-          <Sidebar role="admin" activeTab={activeTab} setActiveTab={setActiveTab} name="Administrator" logout={logout} />
+    <div className="dashboard-layout">
+      <Sidebar role="admin" activeTab={activeTab} setActiveTab={setActiveTab} name="Administrator" logout={logout} />
 
-          {/* Main Content */}
-          <main className="dashboard-main">
-              <h1 style={{ fontSize: '2rem', marginBottom: '2rem' }}>
-                  {navItems.find(i => i.id === activeTab).label}
-              </h1>
+      <main className="dashboard-main">
+        {/* Page Header */}
+        <div className="dashboard-header">
+          <div>
+            <h1 className="title">{tabTitle}</h1>
+            <p className="subtitle">Smart Attendance & ERP Portal — Admin Console</p>
+          </div>
+        </div>
 
-              {activeTab === 'metrics' && metrics && (
-                  <div className="responsive-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-                      <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
-                          <Users size={32} color="var(--primary)" style={{ marginBottom: '1rem' }} />
-                          <h3 style={{ fontSize: '2rem', margin: 0 }}>{metrics.students}</h3>
-                          <p style={{ color: 'var(--text-muted)' }}>Registered Students</p>
-                      </div>
-                      <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
-                          <Briefcase size={32} color="#10b981" style={{ marginBottom: '1rem' }} />
-                          <h3 style={{ fontSize: '2rem', margin: 0 }}>{metrics.employees}</h3>
-                          <p style={{ color: 'var(--text-muted)' }}>Active Employees</p>
-                      </div>
-                      <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
-                          <DollarSign size={32} color="#f59e0b" style={{ marginBottom: '1rem' }} />
-                          <h3 style={{ fontSize: '2rem', margin: 0 }}>${metrics.totalFeesCollected}</h3>
-                          <p style={{ color: 'var(--text-muted)' }}>Fees Collected</p>
-                      </div>
-                  </div>
-              )}
-
-              {activeTab !== 'metrics' && (
-                  <div className="glass-panel" style={{ padding: '2rem' }}>
-                      
-                      {activeTab === 'employees' && (
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-                              <button className="btn-primary" onClick={() => setShowAddEmployee(!showAddEmployee)}>
-                                  {showAddEmployee ? 'Cancel' : '+ New Employee'}
-                              </button>
-                          </div>
-                      )}
-
-                      {activeTab === 'employees' && showAddEmployee && (
-                          <form onSubmit={handleCreateEmployee} autoComplete="off" className="emp-form-grid" style={{ background: 'rgba(0, 0, 0, 0.03)', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                              <input autoComplete="off" required className="input-field" placeholder="Name" value={empForm.name} onChange={e => setEmpForm({...empForm, name: e.target.value})} />
-                              <input autoComplete="new-password" required className="input-field" placeholder="Username" type="text" value={empForm.username} onChange={e => setEmpForm({...empForm, username: e.target.value})} />
-                              <input autoComplete="off" required className="input-field" placeholder="Department" value={empForm.department} onChange={e => setEmpForm({...empForm, department: e.target.value})} />
-                              <input autoComplete="off" required className="input-field" placeholder="Role (e.g. Professor)" value={empForm.role} onChange={e => setEmpForm({...empForm, role: e.target.value})} />
-                              <input autoComplete="off" required className="input-field" placeholder="Salary" type="number" value={empForm.salary} onChange={e => setEmpForm({...empForm, salary: e.target.value})} />
-                              <input autoComplete="new-password" required className="input-field" placeholder="Password" type="password" value={empForm.password} onChange={e => setEmpForm({...empForm, password: e.target.value})} />
-                              <button type="submit" className="btn-primary" style={{ gridColumn: '1 / -1' }}>Create Credentials</button>
-                          </form>
-                      )}
-
-                      {loading ? (
-                          <p style={{ color: 'var(--text-muted)' }}>Loading records...</p>
-                      ) : dataList.length === 0 ? (
-                          <p style={{ color: 'var(--text-muted)' }}>No records found.</p>
-                      ) : (
-                          <div className="table-scroll">
-                              <table style={{ textAlign: 'left', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
-                                  <thead>
-                                      <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                                          {activeTab === 'students' && (
-                                              <><th style={{ padding: '1rem' }}>Name</th><th style={{ padding: '1rem' }}>Roll No</th><th style={{ padding: '1rem' }}>Email</th><th style={{ padding: '1rem' }}>Face Configured</th><th style={{ padding: '1rem', width: '100px' }}>Actions</th></>
-                                          )}
-                                          {activeTab === 'employees' && (
-                                              <><th style={{ padding: '1rem' }}>Name</th><th style={{ padding: '1rem' }}>Role</th><th style={{ padding: '1rem' }}>Department</th></>
-                                          )}
-                                          {activeTab === 'fees' && (
-                                              <><th style={{ padding: '1rem' }}>Student</th><th style={{ padding: '1rem' }}>Total</th><th style={{ padding: '1rem' }}>Paid</th><th style={{ padding: '1rem' }}>Due Date</th></>
-                                          )}
-                                          {activeTab === 'attendance' && (
-                                              <><th style={{ padding: '1rem' }}>Student</th><th style={{ padding: '1rem' }}>Date</th><th style={{ padding: '1rem' }}>Status</th></>
-                                          )}
-                                      </tr>
-                                  </thead>
-                                  <tbody>
-                                      {dataList.map((row, i) => (
-                                          <tr key={i} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                                              {activeTab === 'students' && (
-                                                  <><td style={{ padding: '1rem' }}>{row.name}</td><td style={{ padding: '1rem' }}>{row.rollNumber}</td><td style={{ padding: '1rem' }}>{row.email}</td><td style={{ padding: '1rem' }}>{row.registeredFace ? 'Yes' : 'No'}</td><td style={{ padding: '1rem' }}>
-                                                      {row.registeredFace && (
-                                                          <button onClick={() => handleResetFace(row._id)} style={{ padding: '6px 12px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: '6px', cursor: 'pointer', fontWeight: '500' }}>Reset Face</button>
-                                                      )}
-                                                  </td></>
-                                              )}
-                                              {activeTab === 'employees' && (
-                                                  <><td style={{ padding: '1rem' }}>{row.name}</td><td style={{ padding: '1rem' }}>{row.role}</td><td style={{ padding: '1rem' }}>{row.department}</td></>
-                                              )}
-                                              {activeTab === 'fees' && (
-                                                  <><td style={{ padding: '1rem' }}>{row.student?.name} ({row.student?.rollNumber})</td><td style={{ padding: '1rem' }}>${row.totalAmount}</td><td style={{ padding: '1rem' }}>${row.paidAmount}</td><td style={{ padding: '1rem' }}>{new Date(row.dueDate).toLocaleDateString()}</td></>
-                                              )}
-                                              {activeTab === 'attendance' && (
-                                                  <><td style={{ padding: '1rem' }}>{row.student?.name}</td><td style={{ padding: '1rem' }}>{new Date(row.date).toLocaleString()}</td><td style={{ padding: '1rem' }}>
-                                                      <span style={{ background: row.status === 'Present' ? 'var(--success)' : 'var(--danger)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', color: 'black' }}>{row.status}</span>
-                                                  </td></>
-                                              )}
-                                          </tr>
-                                      ))}
-                                  </tbody>
-                              </table>
-                          </div>
-                      )}
-                  </div>
-              )}
-          </main>
-      </div>
+        <div className="animate-fadeIn">
+          {activeTab === 'exam'    && <ExamProctoring />}
+          {activeTab === 'metrics' && <MetricsView />}
+          {['students', 'employees', 'fees', 'attendance'].includes(activeTab) && <DataView />}
+        </div>
+      </main>
+    </div>
   );
 };
 

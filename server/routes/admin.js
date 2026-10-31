@@ -55,6 +55,16 @@ router.get('/students', adminAuth, async (req, res) => {
     }
 });
 
+// GET registered students with attendance face descriptors for Exam Mode CCTV surveillance
+router.get('/exam-students', adminAuth, async (req, res) => {
+    try {
+        const students = await Student.find().select('name rollNumber email registeredFace faceDescriptor');
+        res.json(students);
+    } catch (err) {
+        res.status(500).json({ message: 'Server error', error: err.message });
+    }
+});
+
 // Reset student face ID
 router.put('/students/:id/reset-face', adminAuth, async (req, res) => {
     try {
