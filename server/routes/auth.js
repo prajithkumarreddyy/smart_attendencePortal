@@ -20,10 +20,10 @@ router.post('/register', async (req, res) => {
         student = new Student({ name, rollNumber, email, password: hashedPassword });
         await student.save();
 
-        const payload = { id: student._id, rollNumber: student.rollNumber };
+        const payload = { id: student._id, role: 'student', rollNumber: student.rollNumber };
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        res.json({ token, student: { id: student._id, name, rollNumber, email, registeredFace: false } });
+        res.json({ token, student: { id: student._id, role: 'student', name, rollNumber, email, registeredFace: false } });
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message });
     }

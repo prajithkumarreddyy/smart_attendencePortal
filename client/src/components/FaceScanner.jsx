@@ -181,9 +181,9 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
             if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
             try {
-                // inputSize: 416 = detects faces from farther distance (smaller faces in frame)
-                // 224 = needs face very close. 320 = medium. 416 = works at arm's length or further.
-                const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 });
+                // inputSize: 224 = fastest inference, good for mobile phones at arm's length
+                // scoreThreshold: 0.15 = detect faces even in poor lighting
+                const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.15 });
                 const detections = await faceapi.detectSingleFace(videoRef.current, options)
                     .withFaceLandmarks()
                     .withFaceDescriptor();
@@ -197,8 +197,8 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
                     const score = detections.detection.score;
                     setStatus(`Face detected (${Math.round(score * 100)}% confidence)... Hold steady`);
 
-                    // 0.4 threshold — relaxed enough to work at normal distance
-                    if (score > 0.4 && !isProcessingRef.current) {
+                    // 0.3 threshold — captures face quickly even on budget mobile cameras
+                    if (score > 0.3 && !isProcessingRef.current) {
                         isProcessingRef.current = true;
                         setIsProcessing(true);
                         setStatus('Processing Face Data...');
@@ -211,7 +211,7 @@ const FaceScanner = ({ mode: initialMode, isRegistered, initialToken, onCaptureS
             } catch (err) {
                 // Detection can fail if video element is in a bad state — just skip
             }
-        }, 500);
+        }, 300);
     };
 
     const processDescriptor = async (descriptorFloat32) => {
