@@ -72,7 +72,7 @@ router.post('/mark', authMiddleware, async (req, res) => {
 
         // Verify the face matches the logged-in student
         const distanceToSelf = euclideanDistance(descriptor, student.faceDescriptor);
-        const threshold = 0.85; // Relaxed threshold — works with glasses, varied lighting, and mobile cameras
+        const threshold = 0.75; // Balanced: accepts varying conditions (0.71 seen) but rejects different people
 
         if (distanceToSelf > threshold) {
             return res.status(400).json({ 
@@ -85,7 +85,7 @@ router.post('/mark', authMiddleware, async (req, res) => {
         const otherStudents = await Student.find({ registeredFace: true, _id: { $ne: req.user.id } });
         for (let other of otherStudents) {
             const distanceToOther = euclideanDistance(descriptor, other.faceDescriptor);
-            if (distanceToOther < 0.65 && distanceToOther < distanceToSelf - 0.10) {
+            if (distanceToOther < 0.50 && distanceToOther < distanceToSelf - 0.05) {
                 return res.status(400).json({ 
                     message: 'Biometric mismatch: This face matches another registered student. Proxy attendance blocked.' 
                 });
